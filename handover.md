@@ -1,19 +1,21 @@
-# Handover — Xoro EPG Projekt (2026-04-25)
+# Handover — xoro-epg-enricher (2026-04-25)
 
-## Status: Erkundungsphase abgeschlossen, Planner NICHT gespawnt (Rate-Limit)
+## Status: Projekt-Setup abgeschlossen, bereit für Issue #1 (PoC)
 
-## Erkenntnisse
-- Aufnahmen in nummerierten Ordnern: N:\PVR\REC\00029\ etc.
-- Jeder Ordner: record.ts + RECInfo.txt (Sender + Titel, KEINE Langbeschreibung)
-- Kein DLNA auf Xoro, keine Firmware-Modifikation möglich
-- Ruben nutzt KLACK Android-App → alle Aufnahmen sind bekannte Titel → TMDb reicht
-- Ziel: Jellyfin (lokal, Android-App) als mobile Mediathek
-- n8n Hetzner scheidet aus (N: lokal) → lokales Skript auf Windows
+## Repo
+https://github.com/RangRang416/xoro-epg-enricher (Commit 521d49c)
+Lokal: `/mnt/c/Users/Ruben/Projects/Xoro_Aufnahmen mit EPG_Beschreibung/`
 
-## Architektur (entschieden)
-RECInfo.txt → Titel + Sender → TMDb API → .nfo + poster.jpg → Jellyfin → Android
+## Nächster Schritt: Issue #1 — PoC manuell
+Ruben muss: TMDb-API-Key registrieren (themoviedb.org, kostenlos), Jellyfin installieren, 1 Aufnahme manuell durch die Kette schieben.
+Stopp-Bedingung: Falls .ts-Playback in Jellyfin Android nicht funktioniert → Plan-Revision.
 
-## Nächste Session
-1. Planner (Opus) spawnen mit obigem Kontext
-2. GitHub Repo anlegen: xoro-epg-enricher (RangRang416)
-3. KEIN weiterer Erkundungsaufwand nötig — alle Fragen geklärt
+## Architektur (final)
+Python 3.11 + TMDb API + Jellyfin lokal + Windows Task Scheduler (alle 10 Min).
+Kein n8n, kein XMLTV-Archiv.
+
+## Xoro-Format
+N:\PVR\REC\00NNN\ mit record.ts + RECInfo.txt (Sender + Titel, keine Langbeschreibung).
+
+## Issues (13 offen, #0 geschlossen)
+#1 PoC → #2 Grundgerüst → #3 Parser → #4 TMDb-Client → #5 Cover → #6 NFO → #7 Orchestrator → #8 Task Scheduler → #9 Jellyfin-Doku → #10 E2E-Test → #11 Härtung → (#12/#13 optional)
