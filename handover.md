@@ -1,21 +1,23 @@
-# Handover — xoro-epg-enricher (2026-04-25)
+# Handover — xoro-epg-enricher (2026-04-25, Rev 2)
 
-## Status: Projekt-Setup abgeschlossen, bereit für Issue #1 (PoC)
+## Status: Plan finalisiert (2× Planner-Revision), bereit für Issue #1 (PoC)
 
 ## Repo
-https://github.com/RangRang416/xoro-epg-enricher (Commit 521d49c)
-Lokal: `/mnt/c/Users/Ruben/Projects/Xoro_Aufnahmen mit EPG_Beschreibung/`
+https://github.com/RangRang416/xoro-epg-enricher
 
-## Nächster Schritt: Issue #1 — PoC manuell
-Ruben muss: TMDb-API-Key registrieren (themoviedb.org, kostenlos), Jellyfin installieren, 1 Aufnahme manuell durch die Kette schieben.
-Stopp-Bedingung: Falls .ts-Playback in Jellyfin Android nicht funktioniert → Plan-Revision.
+## Finale Architektur
+Xoro → USB-Stick → Synology USB Copy → Python auf NAS → Jellyfin Docker → Android
 
-## Architektur (final)
-Python 3.11 + TMDb API + Jellyfin lokal + Windows Task Scheduler (alle 10 Min).
-Kein n8n, kein XMLTV-Archiv.
+## Nächster Schritt: Issue #1 — PoC manuell (6 Punkte)
+1. Xoro USB-Stick-Format = SATA-Format?
+2. Synology USB Copy funktioniert?
+3. Python ≥ 3.9 auf Synology?
+4. pip install rapidfuzz/chardet/requests auf ARM/x86?
+5. TMDb-API-Key + manueller .nfo-Test
+6. Jellyfin Docker + .ts auf Android abspielen?
 
-## Xoro-Format
-N:\PVR\REC\00NNN\ mit record.ts + RECInfo.txt (Sender + Titel, keine Langbeschreibung).
+Alle ✓ → Issue #2 starten. Ein ✗ → Eskalation.
 
-## Issues (13 offen, #0 geschlossen)
-#1 PoC → #2 Grundgerüst → #3 Parser → #4 TMDb-Client → #5 Cover → #6 NFO → #7 Orchestrator → #8 Task Scheduler → #9 Jellyfin-Doku → #10 E2E-Test → #11 Härtung → (#12/#13 optional)
+## Issues
+13 offen (#1–#13), #0 geschlossen.
+#1, #2, #7, #8, #9 revidiert (Synology-Architektur). #3–#6, #10–#13 unverändert.

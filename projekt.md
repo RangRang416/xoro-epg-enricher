@@ -1,6 +1,22 @@
 # Projekt: xoro-epg-enricher — Aktiver Plan
 
-**Stand: 2026-04-25 | Planner: Opus | Status: Phase I bereit**
+**Stand: 2026-04-25 | Planner: Opus (2× revidiert) | Status: Phase I bereit**
+
+---
+
+## Finale Architektur
+
+```
+Xoro HRT 8772 → USB-Stick
+       ↓ (Stick in Synology USB-Port)
+  Synology USB Copy (DSM, auto-kopiert auf /volume1/aufnahmen/inbox/)
+       ↓
+  Python-Skript (Synology Task Scheduler, alle 10 Min)
+       ↓ RECInfo.txt → TMDb API → .nfo + poster.jpg
+  Jellyfin Docker (auf Synology, 24/7)
+       ↓
+  Jellyfin Android-App
+```
 
 ---
 
@@ -8,74 +24,76 @@
 
 | Entscheidung | Begründung |
 |---|---|
-| Python 3.11+ statt n8n | SMB-Laufwerk lokal, kein Web-Service-Bedarf |
-| Windows Task Scheduler (alle 10 Min) | SMB liefert keine zuverlässigen Filesystem-Events |
+| Python 3.11 + venv in Shared Folder | Package Center liefert unterschiedliche Versionen je Synology-Modell |
+| Synology Task Scheduler (alle 10 Min) | SMB/NFS keine zuverlässigen Inotify-Events; Polling robust |
+| USB-Copy Hook optional | Nicht in allen DSM-Versionen verfügbar |
 | Ordner NICHT umbenennen | Xoro-Indexdateien (.idx/.meta) haben Pfad-Referenzen |
 | Fallback-NFO immer | Lieber leer als fehlend in Jellyfin |
-| TMDb statt XMLTV/EPG-Archiv | Ruben wählt Filme via KLACK → alle sind bekannte Mainstream-Titel |
-| Phase I: nur Filme | Serien/Episoden sind eigenes Klasse-C-Issue (Phase IV) |
+| TMDb statt XMLTV | Ruben wählt Filme via KLACK → Mainstream-Titel → TMDb trifft zuverlässig |
+| Jellyfin docker-compose | Versionierbar, portabel, Multi-Arch (ARM64 + x86) |
+| Read-Only Volume-Mount | Jellyfin schreibt nicht in Aufnahmen-Verzeichnis |
+| Windows-PC komplett eliminiert | NAS übernimmt Enrichment + Media-Server |
 
 ---
 
 ## Issue-Übersicht
 
-| # | Titel | Klasse | Impl | Reviewer | Status | Blockiert durch |
-|---|-------|--------|------|----------|--------|-----------------|
-| #0 | Repo-Setup + README + projekt.md | A+ | Haiku | — | OFFEN | — |
-| #1 | PoC — 1 Aufnahme manuell durch komplette Kette | B | Sonnet | — | OFFEN | #0 |
-| #2 | Skript-Grundgerüst + Modulstruktur + CLI | C | Sonnet | Opus | OFFEN | #1 |
-| #3 | RECInfo.txt-Parser mit Encoding-Detection | B | Sonnet | Opus | OFFEN | #2 |
-| #4 | TMDb-Client mit Scoring + Fallback | C | Sonnet | Opus | OFFEN | #2, #3 |
-| #5 | Cover-Downloader | A+ | Haiku | Sonnet | OFFEN | #2 |
-| #6 | NFO-Generator (Movie) mit Fallback-Pfad | B | Sonnet | Opus | OFFEN | #2, #3, #4 |
-| #7 | Orchestrator + Idempotenz-Marker | B | Sonnet | Opus | OFFEN | #3, #4, #5, #6 |
-| #8 | Windows Task Scheduler Setup + Doku | A+ | Haiku | Sonnet | OFFEN | #7 |
-| #9 | Jellyfin-Setup-Doku | A | Haiku | — | OFFEN | #1 |
-| #10 | E2E-Test mit 10+ realen Aufnahmen | B | Sonnet | — | OFFEN | #7, #9 |
-| #11 | Fehlerbehandlung & Logging-Härtung | B | Sonnet | Opus | OFFEN | #10 |
-| #12 | (Optional) Serien/Episoden-Support | C | Sonnet | Opus | OPTIONAL | #11 |
-| #13 | (Optional) Web-Dashboard Status-Übersicht | C | Sonnet | Opus | OPTIONAL | #11 |
+| # | Titel | Klasse | Impl | Reviewer | Status |
+|---|-------|--------|------|----------|--------|
+| #0 | Repo-Setup | A+ | Haiku | — | ✅ DONE |
+| #1 | PoC — Synology End-to-End | B | Sonnet | — | OFFEN |
+| #2 | Grundgerüst (POSIX, venv, Multi-Arch) | C | Sonnet | Haiku | OFFEN |
+| #3 | RECInfo.txt-Parser | B | Sonnet | Opus | OFFEN |
+| #4 | TMDb-Client mit Scoring | C | Sonnet | Opus | OFFEN |
+| #5 | Cover-Downloader | A+ | Haiku | Sonnet | OFFEN |
+| #6 | NFO-Generator | B | Sonnet | Opus | OFFEN |
+| #7 | Orchestrator + Idempotenz | B | Sonnet | Opus | OFFEN |
+| #8 | Synology Setup-Doku | A+ | Sonnet | Opus | OFFEN |
+| #9 | Jellyfin Docker (docker-compose) | B | Sonnet | Opus | OFFEN |
+| #10 | E2E-Test 10+ Aufnahmen | B | Sonnet | — | OFFEN |
+| #11 | Fehlerbehandlung & Härtung | B | Sonnet | Opus | OFFEN |
+| #12 | (Optional) Serien-Support | C | Sonnet | Opus | OPTIONAL |
+| #13 | (Optional) Web-Dashboard | C | Sonnet | Opus | OPTIONAL |
 
-**Critic-Pflicht:** #1, #2, #4, #6
+**Critic-Pflicht:** #1, #2, #4, #6, #9
 
 ---
 
 ## Phasen
 
-### Phase I — PoC (Pflicht)
-Issues #0, #1  
-Stopp-Bedingung: Falls .ts-Playback in Jellyfin Android unbrauchbar → Plan-Revision
+### Phase I — PoC (Stopp-Bedingung)
+Issue #1: Alle 6 Hardware-Punkte ✓ → weiter. ✗ → Plan-Revision.
 
 ### Phase II — Kernmodule
-Issues #2–#6
+Issues #2–#6 (Grundgerüst, Parser, TMDb, Cover, NFO)
 
-### Phase III — Automatisierung + Jellyfin
-Issues #7–#11
+### Phase III — Automatisierung
+Issues #7–#9 (Orchestrator, Synology-Setup, Jellyfin Docker)
 
-### Phase IV — Optional
-Issues #12, #13
+### Phase IV — Validation
+Issues #10–#11 (E2E-Test, Härtung)
 
----
-
-## Risiken
-
-- TMDb-Trefferquote ZDFinfo-Dokus < 50% → Fallback-NFO greift immer
-- .ts-Playback in Jellyfin stottert → PoC #1 prüft das früh
-- RECInfo.txt-Encoding exotisch → chardet + Fallback-Reihenfolge in #3
-- Doppelte Verarbeitung bei parallelen Läufen → atomic write via os.replace
+### Phase V — Optional
+Issues #12–#13
 
 ---
 
 ## Xoro-Aufnahme-Format (ermittelt 2026-04-25)
 
 ```
-N:\PVR\REC\00029\
-  record.ts          (1-2 GB, Videoinhalt)
+N:\PVR\REC\00029\   (SATA-Platte, direkt an PC)
+  record.ts          (1-2 GB)
   RECInfo.txt        (Sender, Titel, Untertitel, Sprache — KEINE Langbeschreibung)
-  record.ts.meta
-  record.ts.idx
-  record.ts.pmt
+  record.ts.meta / .idx / .pmt
   URIInfo.bin
 ```
+USB-Stick-Format vermutlich identisch — PoC #1 verifiziert das.
 
-RECInfo.txt Beispiel-Inhalt: `ZDFinfo HD … deu … Polenfeldzug … Der Nervenkrieg`
+---
+
+## Risiken
+
+- USB-Stick-Format weicht von SATA ab → PoC #1 verifiziert
+- rapidfuzz kein ARM-Wheel → Entware-Fallback in #2
+- DSM USB-Copy Hook nicht verfügbar → Polling als Default
+- Jellyfin .ts-Playback stottert → Hardware-Transcoding in #9
