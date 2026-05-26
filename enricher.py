@@ -373,6 +373,10 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
 
     try:
         shutil.move(str(folder), str(dest))
+        for suffix in ('', '.idx', '.meta', '.pmt'):
+            src = dest / f'record.ts{suffix}'
+            if src.exists():
+                src.rename(dest / f'{name}.ts{suffix}')
         print(f'  → verschoben → {dest}')
         if stats is not None:
             stats['moved'] = stats.get('moved', 0) + 1
