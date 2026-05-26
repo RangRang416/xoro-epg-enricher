@@ -333,14 +333,18 @@ def _nfo_info(nfo_path: Path) -> dict:
     return {'type': 'unknown', 'recognized': False}
 
 
-def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bool, stats: dict = None):
+def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bool, stats: dict = None, dest_unmatched: str = None):
     nfo = folder / 'movie.nfo'
     if not nfo.exists():
         return
     info = _nfo_info(nfo)
     kind = info.get('type', 'unknown')
 
-    if kind == 'movie' and dest_movies:
+    if not info.get('recognized') and dest_unmatched:
+        dest_base = Path(dest_unmatched)
+        name = _sanitize(info.get('title') or folder.name)
+        print(f'  → kein API-Match, verschiebe → Nicht erkannt')
+    elif kind == 'movie' and dest_movies:
         dest_base = Path(dest_movies)
         title = _sanitize(info.get('title') or folder.name)
         year  = info.get('year', '')
@@ -354,9 +358,6 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
     else:
         print(f'  → kein Zielordner für Typ "{kind}"')
         return
-
-    if not info.get('recognized'):
-        print(f'  → kein API-Match, verschiebe als "Nicht erkannt"')
 
     if not dest_base.is_dir():
         print(f'  → Zielordner nicht gefunden: {dest_base}')
@@ -499,8 +500,9 @@ def main():
     parser.add_argument('--language',     default='de')
     parser.add_argument('--dry-run',      action='store_true')
     parser.add_argument('--force',        action='store_true')
-    parser.add_argument('--dest-movies',  default=None, help='Zielordner für Filme nach Enrichment')
-    parser.add_argument('--dest-series',  default=None, help='Zielordner für Serien nach Enrichment')
+    parser.add_argument('--dest-movies',    default=None, help='Zielordner für Filme nach Enrichment')
+    parser.add_argument('--dest-series',    default=None, help='Zielordner für Serien nach Enrichment')
+    parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
     args = parser.parse_args()
 
     tmdb = TMDb(args.tmdb_key, args.language) if args.tmdb_key else None
@@ -543,8 +545,8 @@ def main():
         else:
             stats['error'] += 1
 
-        if status in ('done', 'fallback', 'skip:already-done') and (args.dest_movies or args.dest_series):
-            move_recording(folder, args.dest_movies, args.dest_series, args.dry_run, stats)
+        if status in ('done', 'fallback', 'skip:already-done') and (args.dest_movies or args.dest_series or args.dest_unmatched):
+            move_recording(folder, args.dest_movies, args.dest_series, args.dry_run, stats, dest_unmatched=args.dest_unmatched)
 
         if tmdb and status in ('done', 'fallback'):
             time.sleep(0.3)
