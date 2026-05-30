@@ -206,3 +206,67 @@ Die Risiko-Zeile „Enricher-Task von laufendem Jellyfin-Container abhängig →
 - **Variante B (DLNA→VLC) endgültig?** Als Primärweg verworfen ist sachlich ok (Katalog-Verlust, Ziel 2). Als manueller Notfall-Rückweg kostenlos, da bereits funktionsfähig — dokumentiert behalten, nicht aktiv pflegen.
 
 — Externer Controller (Claude-Web)
+
+---
+
+# Phase VI — Planner-Revision 1 (wartet auf Controller-Freigabe, Turn 2)
+
+**Stand: 2026-05-30 | Planner: Opus | Status: Revision 1**
+
+## Architektur-Entscheidungen (revidiert)
+
+| Entscheidung | why: |
+|---|---|
+| Verzweigung auf Auslöser-Typ statt Video-Codec | VLC spielt HEVC-Bild direkt ab → Videobild ist dekodierbar. Jellyfin transkodiert aus anderem Grund (DVB-Untertitel/MP2-Audio). Codec-Verzweigung plant für widerlegten Fall. |
+| VI-3 (Server-Profil) ist Primärkandidat | Kein ffmpeg pro Aufnahme, keine Speicherverdopplung, kein Enricher-Eingriff (Ziel 3). Einmalig per API konfiguriert (Ziel 4). Spart VI-2 komplett, falls erfolgreich. |
+| VI-2b gestrichen | HEVC ist Standard-Quelle (DVB-T2 HD), MPEG-2 war DVB-T (abgeschaltet). Echter Randfall → Kontingenz-Einzeiler in VI-1, kein eigenes Opus-Issue. |
+| VI-2 (Remux) nur konditional | Wird nur gebaut wenn VI-3 scheitert. ffmpeg als eigener Compose-Service (`linuxserver/ffmpeg`), nicht `docker exec jellyfin`. |
+| ffmpeg-Entkopplung über Compose-Service | `docker exec` koppelt Remux an Jellyfin-Update-Zyklus → fragil. Eigener Service gibt Versionskontrolle. Nur relevant falls VI-2 aktiviert wird. |
+
+## Issue-Übersicht Phase VI (revidiert)
+
+| # | Titel | Klasse | Impl | Reviewer | Status | Bedingung |
+|---|-------|--------|------|----------|--------|-----------|
+| VI-1 | Diagnose: Auslöser + Server-Profil-Machbarkeit (GATE) | A | Opus | — | OFFEN | — |
+| VI-3 | Server-seitiges Jellyfin-Profil per API (PRIMÄR) | B | Sonnet | Opus | OFFEN | nach VI-1 |
+| VI-2 | Remux-Hook `.ts`→`.mkv` + ffmpeg-Service (FALLBACK) | C | Opus | Sonnet | OFFEN | nur falls VI-3 scheitert |
+
+## Issue VI-1 (GATE, Opus)
+
+**Empirisch beantworten:**
+- (a) Konkreter Transcode-Grund aus Jellyfin-Log / PlaybackInfo-API — DVB-Untertitel und/oder MP2-Audio?
+- (b) Existiert ein server-seitig per API **persistierbarer** Hebel, der den Transcode abstellt?
+- (c) Falls nur client-seitig: Ziel-4-Konflikt explizit markieren
+- (d) Enricher-Vorprüfung: hängt NFO-Matching an `.ts`-Endung? (Datengrundlage für VI-2)
+- (e) Kontingenz: Falls Videobild selbst nicht dekodierbar → Re-Encode, zurück an Planner
+
+**Test:** Testwiedergabe über realen Jellyfin-Client (Chromecast-App), NICHT VLC. Profil-Hebel testweise per API setzen.
+
+**Ergebnis:** GATE-Befund mit Entscheidung VI-3 ODER VI-2.
+
+## Issue VI-3 (PRIMÄR, Sonnet/Opus)
+
+Server-seitiges Profil per Jellyfin-API setzen, das Transcode-Auslöser aus VI-1 abstellt. Persistent über Container-Neustart.
+
+**AK:** Direct Play im Jellyfin-Client bestätigt + Persistenz nach Neustart + per API konfiguriert (Ziel 4).
+
+**Übergang zu VI-2 nur wenn:** Profil stoppt Transcode nicht ODER nicht server-seitig persistent ODER MP2-Audio bleibt zweiter unabhängiger Auslöser.
+
+## Issue VI-2 (FALLBACK, Opus/Sonnet)
+
+Remux-Hook in `enricher.py` hinter `move_recording`: `.ts`→`.mkv`, DVBSUB droppen, Audio bei MP2 umkodieren. ffmpeg über eigenen `linuxserver/ffmpeg`-Compose-Service.
+
+**AK:** Direct Play bestätigt + Enricher-NFO-Matching überlebt Container-Wechsel + Jellyfin-Bibliothek ingestiert `.mkv` ohne Reset + ffmpeg läuft außerhalb Jellyfin-Container.
+
+## Offener Punkt (Architektur-Weichenstellung, Ruben)
+
+Falls VI-1 Ziel-4-Konflikt meldet (Hebel nur client-seitig, nicht per API persistierbar): VI-2-Fallback akzeptieren oder Ziel 4 lockern?
+
+## Risiken (revidiert)
+
+| Risiko | Gegenmaßnahme |
+|---|---|
+| Hebel nur client-seitig (Ziel-4-Konflikt) | VI-1-(c) zwingt Konflikt an Oberfläche vor VI-3-Implementierung |
+| MP2-Audio als zweiter unabhängiger Auslöser | VI-1-(a) prüft beide Auslöser unabhängig; VI-3-Übergangsbedingung deckt Fall ab |
+| VI-2 bricht Enricher-Matching / Library | VI-1-(d) Vorprüfung + VI-2-AK-(b) als hartes Gate |
+| VLC-Trugschluss in Tests | Alle Wiedergabetests explizit gegen realen Jellyfin-Client, nicht VLC |
