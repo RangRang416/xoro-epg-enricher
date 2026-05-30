@@ -97,3 +97,36 @@ USB-Stick-Format vermutlich identisch — PoC #1 verifiziert das.
 - rapidfuzz kein ARM-Wheel → Entware-Fallback in #2
 - DSM USB-Copy Hook nicht verfügbar → Polling als Default
 - Jellyfin .ts-Playback stottert → Hardware-Transcoding in #9
+
+---
+
+# Nachtrag: Phase VI — Wiedergabe ohne Server-Transkodierung
+
+**Projektmanager** (Claude-Web) · 2026-05-30
+
+## Anlass
+Der Enrichment-Strang ist umgesetzt (Teilerfolg). Im Betrieb bestätigt sich das in der Risiko-Liste notierte Problem „Jellyfin .ts-Playback stottert": Jellyfin transkodierte, und das NAS war dafür zu schwach (1 GB RAM zu wenig). Der dort vorgesehene Ausweg „Hardware-Transcoding in #9" trägt nicht — die Hardware gibt das nicht her.
+
+## Kernentscheidung
+Jellyfin bleibt. Das Problem ist nicht Jellyfin, sondern das Transkodieren auf zu schwacher Hardware. Wiedergabegerät ist der vorhandene Chromecast with Google TV. Direct Play ist nachgewiesen möglich — VLC auf dem Chromecast spielt die `.ts` direkt ab. Kodi wurde geprüft und verworfen: keine API-Konfiguration wie bei Jellyfin, kein Bibliotheks-Import, Client statt Server, manuelle Einrichtung am Gerät.
+
+## Ziele (für Planner / Architektur)
+1. Wiedergabe ohne Transkodierungslast auf dem NAS — anstelle von Hardware-Transcoding, das hier nicht möglich ist.
+2. Auswahl-Komfort erhalten: der manuelle Umweg (in Jellyfin aussuchen, in VLC wiederfinden) soll entfallen oder schrumpfen.
+3. Enricher, Synology-Task-Kette und Bibliothek bleiben erhalten — minimaler Eingriff.
+4. Konfiguration weiterhin per Jellyfin-API durch Claude Code (harte Voraussetzung des Nutzers; sonst kein Projekt).
+
+## Lösungsraum (entscheidet der Planner, nicht der Projektmanager)
+- **Client:** Direct Play im Google-TV-Player erzwingen. Hinweis: externer Player ist auf Google TV nicht verfügbar, nur in der Handy-/Tablet-App.
+- **Katalog-Brücke:** VLC den Jellyfin-Katalog per DLNA durchsuchen lassen.
+- **Ingest:** Der aktuelle Plan behält die `.ts` (kein Remux). Ein einmaliger Remux `.ts`→`.mkv` beim Import — mit direct-play-tauglicher Tonspur und ohne problematische DVB-Untertitel — würde Transkodieren ganz vermeiden. Das ist eine neue Option gegenüber dem bisherigen „.ts behalten + Hardware-Transcode".
+
+## Zu verifizieren
+- Welcher Auslöser zwingt Jellyfin zum Transkodieren? Verdacht: Tonspur-Codec und/oder DVB-Untertitel — nicht das Bild (HEVC kann der Chromecast).
+- Passt Jellyfin im Leerlauf (ohne Transkodierung) in den verfügbaren RAM?
+- SSH-Rechte: Genügen die Rechte des Claude-Code-Nutzers für Docker- und Config-Änderungen? Synology-Task-Erstellung braucht ggf. Admin/Root — klären, da Claude Code keinen Root-Zugang hat.
+
+## Abgrenzung
+Nur Wiedergabe gespeicherter Aufnahmen, kein Live-TV. Diese Ergänzung liefert Ziele für die Architektur-Erarbeitung — keinen Plan, keine Implementierung.
+
+— Projektmanager
