@@ -179,3 +179,30 @@ VI-2a und VI-2b sind mutually exclusive. VI-1 ist hartes Gate — kein weiteres 
 | `.ts`+`.mkv` verdoppelt Speicher | Nach Remux `.ts` löschen als AK in VI-2a |
 | Enricher-Task von laufendem Jellyfin-Container abhängig | In Doku + handover.md vermerken |
 | Mehrdeutiger Transcode-Grund | VI-1 protokolliert verbatim; bei Mehrdeutigkeit → Planner, nicht raten |
+
+---
+
+# Phase VI — Controller-Befund (externer Controller, Claude-Web)
+
+**Stand: 2026-05-30 | Controller: Claude-Web | Bezug: Planner-Entwurf oben + Projektmanager-Notiz**
+
+**Verdict: noch keine Freigabe.** Gate-first ist richtig, der Kern trägt — aber der Entwurf enthält einen inneren Widerspruch zur eigenen Projektmanager-Notiz, der vor VI-2-Start aufzulösen ist.
+
+## 1. Branch-Taxonomie widerspricht der eigenen Verifikations-Notiz
+Die Projektmanager-Notiz hält bereits fest: Quelle ist HEVC, Auslöser vermutlich Ton-Codec und/oder DVB-Untertitel — „nicht das Bild". Der Planner-Entwurf verzweigt aber nach „H.264 vs. MPEG-2" (VI-2a/VI-2b) und begründet das Gate mit „Chromecast hat keinen MPEG-2-Decoder". Das fällt hinter den schon dokumentierten Stand zurück. Deutsches DVB-T2 HD sendet HEVC; MPEG-2 war das alte DVB-T. Ist die Quelle HEVC (was VI-1 bestätigt), existiert der MPEG-2-Fall nicht real → VI-2b (der teuerste Knoten, Opus) ist ein toter Ast, und der Remux-Branch sollte „abspielbare Codecs (HEVC/H.264)" heißen statt „nur H.264". Das Risiko „Aufnahmen sind MPEG-2" plus vordefinierter VI-2b binden Planungs-Budget an einen Fall, den das Projekt selbst für unwahrscheinlich hält.
+
+## 2. Der Auslöser, nicht der Video-Codec, sollte die Verzweigung steuern
+Gut: VI-1 heißt „Transcode-Ursache + Codec". Inkonsequent: Begründungstabelle und Branch-Logik hängen am Video-Codec. Ist der Auslöser die DVB-Untertitel (Einbrennen) oder die MP2-Tonspur, entscheidet nicht der Video-Codec über die Lösung. Saubere Verzweigung: „Auslöser im Container entfernbar (Untertitel droppen, ggf. nur Audio umkodieren) → Remux genügt" vs. „Videobild selbst undekodierbar → Re-Encode (Randfall)". Der VLC-Beweis stützt das: das Bild ist abspielbar, Jellyfin transkodiert aus anderem Grund.
+
+## 3. VI-3 (Geräteprofil) ist evtl. die Lösung, nicht der Restfall
+Ist der Auslöser allein das Untertitel-Einbrennen, stellt ein Jellyfin-Profil „Bild-Untertitel nicht einbrennen, Direct Play" das Transkodieren ohne jeden Datei-Eingriff ab — einmalig konfiguriert statt ffmpeg pro Aufnahme, kein `enricher.py`-Hook, keine Speicher-Verdopplung. Das ist die ressourcen- und wartungssparsamste Variante. Der Entwurf stuft VI-3 mit „fragil, Reset bei App-Update" auf optional herab. Diese Begründung ist selbst zu prüfen: liegt die entscheidende Einstellung server-seitig (Jellyfin-Server/DLNA-Profil, persistent) oder client-seitig (vom Chromecast-App-Profil gepusht, rücksetzbar)? Davon hängt ab, ob VI-3 ein robuster Einmal-Fix ist, der VI-2 ganz erspart. VI-1 sollte explizit beantworten: „Löst ein Server-Profil das Problem allein?" — vor dem Pipeline-Umbau VI-2a.
+
+## 4. ffmpeg aus dem Jellyfin-Container: dokumentiert statt entfernt
+Die Risiko-Zeile „Enricher-Task von laufendem Jellyfin-Container abhängig → in Doku vermerken" behebt die Fragilität nicht, sie notiert sie nur. Der Enricher hinge an Lebenszyklus und ffmpeg-Version des Media-Servers; ein Jellyfin-Update kann die Pipeline still brechen. Ein eigener schlanker ffmpeg-Container (separater Compose-Service) entkoppelt das bei minimalem Mehraufwand und gibt Versionskontrolle. Trägt Befund 3 (Profil statt Remux), entfällt der Punkt ohnehin.
+
+## Antworten auf die offenen Fragen
+- **Gate ohne Vorab-Commit:** richtig, beibehalten — inhaltlich am Auslöser ausrichten (Ton + Untertiteltyp + „löst ein Profil es allein?"), nicht primär am Video-Codec.
+- **Abhängigkeit vom laufenden Jellyfin-Container:** technisch tragbar, aber unnötig fragil → eigener ffmpeg-Container, siehe Befund 4.
+- **Variante B (DLNA→VLC) endgültig?** Als Primärweg verworfen ist sachlich ok (Katalog-Verlust, Ziel 2). Als manueller Notfall-Rückweg kostenlos, da bereits funktionsfähig — dokumentiert behalten, nicht aktiv pflegen.
+
+— Externer Controller (Claude-Web)
