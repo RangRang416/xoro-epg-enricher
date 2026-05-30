@@ -130,3 +130,52 @@ Jellyfin bleibt. Das Problem ist nicht Jellyfin, sondern das Transkodieren auf z
 Nur Wiedergabe gespeicherter Aufnahmen, kein Live-TV. Diese Ergänzung liefert Ziele für die Architektur-Erarbeitung — keinen Plan, keine Implementierung.
 
 — Projektmanager
+
+---
+
+# Phase VI — Planner-Entwurf (1. Entwurf, wartet auf Controller-Freigabe)
+
+**Stand: 2026-05-30 | Planner: Opus | Status: Entwurf**
+
+## Kernentscheidung Planner
+
+Jellyfin bleibt. Wiedergabegerät: Chromecast with Google TV. Lösung: Transcode-Ursache empirisch ermitteln (Gate), dann eliminieren — nicht Hardware aufrüsten.
+
+## Issue-Übersicht Phase VI
+
+| # | Titel | Klasse | Impl | Reviewer | Status | Branch |
+|---|-------|--------|------|----------|--------|--------|
+| VI-1 | Diagnose: Transcode-Ursache + Codec (GATE) | A | Haiku | — | OFFEN | — |
+| VI-2a | Remux-Hook im Enricher `.ts`→`.mkv` (`-c copy`) | B | Sonnet | Opus | OFFEN | nur H.264 |
+| VI-2b | Re-Encode-Branch (Planner-Re-Spec nach Messung) | C | Opus→Sonnet | Opus | OFFEN | nur MPEG-2 |
+| VI-3 | Direct-Play-Device-Profil per Jellyfin-API | B | Sonnet | Opus | OPTIONAL | Restfälle |
+
+VI-2a und VI-2b sind mutually exclusive. VI-1 ist hartes Gate — kein weiteres Issue startet ohne Ergebnis.
+
+## Architektur-Entscheidungen Phase VI
+
+| Entscheidung | why: |
+|---|---|
+| Gate-Struktur (VI-1 zuerst) | Video-Codec (H.264 vs. MPEG-2) bestimmt ob `-c copy` hilft. Chromecast hat keinen MPEG-2-Decoder — ohne Messung ist Variantenwahl Raten. |
+| Remux via `docker exec jellyfin-ffmpeg` | Synology-Host hat kein ffmpeg, kein Root-Zugang. Wiederverwendung des bekannten Builds. |
+| Remux-Hook hinter `move_recording` in enricher.py | Minimaler Eingriff (Ziel 3); bestehende Idempotenz (skip via `movie.nfo`) bleibt unangetastet. |
+| Variante B (DLNA→VLC) verworfen | Reintroduziert den Katalog-Umweg, den Ziel 2 explizit eliminieren soll. |
+| Variante A nur als Fallback (VI-3) | Device-Profile per API fragil (Reset bei App-Update). C braucht null Jellyfin-Config. |
+
+## Akzeptanzkriterien Phase VI (gesamt)
+
+1. Jellyfin-Dashboard zeigt bei Chromecast-Wiedergabe **Direct Play** (kein ffmpeg-Spike in `docker stats`)
+2. Enricher-Idempotenz unverändert (Re-Run → skip)
+3. NFO/Cover/Bibliothek unberührt
+4. Auswahl und Steuerung vollständig über Jellyfin (kein VLC-Umweg)
+5. Konfigurierbar per Jellyfin-API durch Claude Code
+
+## Risiken Phase VI
+
+| Risiko | Gegenmaßnahme |
+|---|---|
+| Aufnahmen sind MPEG-2 → `-c copy` löst nichts | VI-1 als hartes Gate; Branch VI-2b vordefiniert |
+| Falsches Audio-Stream-Mapping → Ton fehlt | ffprobe-gestütztes `-map`, Opus-Review, Ton-Verifikation als AK |
+| `.ts`+`.mkv` verdoppelt Speicher | Nach Remux `.ts` löschen als AK in VI-2a |
+| Enricher-Task von laufendem Jellyfin-Container abhängig | In Doku + handover.md vermerken |
+| Mehrdeutiger Transcode-Grund | VI-1 protokolliert verbatim; bei Mehrdeutigkeit → Planner, nicht raten |
