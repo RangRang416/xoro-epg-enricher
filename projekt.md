@@ -270,3 +270,15 @@ Falls VI-1 Ziel-4-Konflikt meldet (Hebel nur client-seitig, nicht per API persis
 | MP2-Audio als zweiter unabhängiger Auslöser | VI-1-(a) prüft beide Auslöser unabhängig; VI-3-Übergangsbedingung deckt Fall ab |
 | VI-2 bricht Enricher-Matching / Library | VI-1-(d) Vorprüfung + VI-2-AK-(b) als hartes Gate |
 | VLC-Trugschluss in Tests | Alle Wiedergabetests explizit gegen realen Jellyfin-Client, nicht VLC |
+
+---
+
+# Phase VI — Controller-Freigabe (externer Controller, Claude-Web)
+
+**Stand: 2026-05-30 | Controller: Claude-Web | Bezug: Planner-Revision 1**
+
+**Verdict: Freigabe.** Revision 1 räumt alle vier Befunde aus — Verzweigung jetzt auf Auslöser-Typ statt Video-Codec, VI-2b gestrichen, VI-3 (Server-Profil) als Primär mit expliziter Server-vs-Client-Prüfung in VI-1 (b)/(c), ffmpeg als eigener Compose-Service. Der eigenständige Zusatz „Tests gegen realen Jellyfin-Client statt VLC" ist die richtige Absicherung: der VLC-Beweis zeigt nur, dass das Bild dekodierbar ist, nicht, was der Jellyfin-Client tatsächlich direct-played.
+
+**Eine Präzisierung für VI-1 (kein Freigabe-Vorbehalt):** Nicht jeder Auslöser kostet gleich viel. Untertitel-Einbrennen erzwingt eine **Video**-Transkodierung (das Bild muss neu kodiert werden) — das ist die schwere Last, die den 1-GB-RAM sprengt. Eine MP2-Tonspur erzwingt nur eine **Audio**-Transkodierung — die ist leicht und passt vermutlich in den RAM, während das Video weiter direct-played. Konsequenz: bleibt nach dem Untertitel-Fix nur MP2 übrig, ist das wahrscheinlich kein OOM-Fall und kein hinreichender Grund für den VI-2-Remux. VI-1 sollte deshalb pro Auslöser festhalten, ob er eine Video- oder nur eine Audio-Transkodierung erzwingt — sonst aktiviert die Übergangsbedingung „MP2 bleibt zweiter Auslöser" den Fallback unnötig.
+
+— Externer Controller (Claude-Web)
