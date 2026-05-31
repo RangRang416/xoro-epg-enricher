@@ -282,3 +282,9 @@ Falls VI-1 Ziel-4-Konflikt meldet (Hebel nur client-seitig, nicht per API persis
 **Eine Präzisierung für VI-1 (kein Freigabe-Vorbehalt):** Nicht jeder Auslöser kostet gleich viel. Untertitel-Einbrennen erzwingt eine **Video**-Transkodierung (das Bild muss neu kodiert werden) — das ist die schwere Last, die den 1-GB-RAM sprengt. Eine MP2-Tonspur erzwingt nur eine **Audio**-Transkodierung — die ist leicht und passt vermutlich in den RAM, während das Video weiter direct-played. Konsequenz: bleibt nach dem Untertitel-Fix nur MP2 übrig, ist das wahrscheinlich kein OOM-Fall und kein hinreichender Grund für den VI-2-Remux. VI-1 sollte deshalb pro Auslöser festhalten, ob er eine Video- oder nur eine Audio-Transkodierung erzwingt — sonst aktiviert die Übergangsbedingung „MP2 bleibt zweiter Auslöser" den Fallback unnötig.
 
 — Externer Controller (Claude-Web)
+
+---
+
+## Feldbeobachtung (Bernd, 2026-05-30) → Eingang VI-1
+
+Wiedergabe aus der Jellyfin-Android-App auf den Chromecast gelang spontan, ohne Änderung. Noch kein Beweis für „gelöst": anderer Wiedergabeweg (Cast aus der App) als die native Google-TV-App; möglich sind ein App-/Server-Update, ein abweichender Film (Tonspur/Untertitel) oder ein leichtes Audio-Transcode statt echtem Direct Play. VI-1 misst entsprechend: Dashboard / `docker stats` → Direct Play vs. Transcode(Audio); über mehrere Aufnahmen reproduzieren; Cast-Weg vs. native App vergleichen.
