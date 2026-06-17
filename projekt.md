@@ -270,3 +270,38 @@ Falls VI-1 Ziel-4-Konflikt meldet (Hebel nur client-seitig, nicht per API persis
 | MP2-Audio als zweiter unabhängiger Auslöser | VI-1-(a) prüft beide Auslöser unabhängig; VI-3-Übergangsbedingung deckt Fall ab |
 | VI-2 bricht Enricher-Matching / Library | VI-1-(d) Vorprüfung + VI-2-AK-(b) als hartes Gate |
 | VLC-Trugschluss in Tests | Alle Wiedergabetests explizit gegen realen Jellyfin-Client, nicht VLC |
+
+---
+
+# Issues #21/#22/#23 — Serien/Jellyfin-Fixes
+
+**Stand: 2026-06-17 | Planner: Opus (2× revidiert, Controller-Freigabe) | Status: WI-2 bereit**
+
+## Ursachen (ermittelt)
+
+| Ursache | Betroffene Issues |
+|---|---|
+| TypeOptions fehlt `"Type": "Episode"` → NFO-Reader + Online-Fetcher beide aus | #21 (alle Shows) |
+| Enricher: Flat-Folder-Struktur (`Show - SxxEyy/`) statt `Show/Season NN/SxxEyy.*` | #21, #23 (Enricher-Episoden) |
+| Enricher: `movie.nfo` statt `Videoname.nfo` (Basename muss übereinstimmen) | #21 (Enricher-Episoden) |
+| Enricher: `<plot>` = Serien-Overview (identisch für alle Folgen) | #21 |
+| `POST /Sessions/Playing/Stopped` → HTTP 500 (Ursache: Stacktrace ausstehend) | #22 |
+| Flat-Folder → kein Episode-Grouping → kein Watched-Tracking/Next-Up | #23 |
+
+## Work Items (freigegebene Reihenfolge)
+
+| WI | Beschreibung | Klasse | Impl | Test | Status |
+|---|---|---|---|---|---|
+| WI-2 | Jellyfin TypeOptions-Spike: Episode-Eintrag via API, NFO-Reader-Verifikation bei `EnableInternetProviders: false` | B | Sonnet | — | **BEREIT** |
+| WI-1 | Enricher-Rewrite: Jellyfin-Struktur `Show/Season NN/SxxEyy.*`, NFO-Basename=Video, `episode_overview()` TVDb-Methode | C | Opus | Sonnet | wartet auf WI-2 |
+| WI-3 | Migration bestehender Flat-Folder → neue Hierarchie (dry-run, idempotent) | B | Sonnet | Haiku | blockiert durch WI-1 |
+| WI-4 | #22-Diagnose: HTTP-500-Stacktrace, konditionaler Fix | C | Opus | Sonnet | blockiert durch WI-1/WI-3 |
+| WI-5 | Hardening: inotify-Limit / AutomaticRefreshInterval | A+ | Sonnet | — | begleitend |
+
+## Entscheidungen
+
+| Entscheidung | Wert | why |
+|---|---|---|
+| Metadaten-Primärpfad | NFO-primär | EPG-Material steht großteils nicht in TVDb/TMDb; Online würde lokale Enricher-Metadaten überschreiben |
+| `EnableInternetProviders` | `false` belassen | Bewusstes Offline-Design; WI-2 testet NFO-Reader bei gesetztem `false` |
+| Jellyfin-Zielstruktur | `Show/Season NN/ShowTitle SxxEyy.*` | Jellyfin TV-Naming-Spec; Breaking Bad beweist dass diese Struktur korrekt verarbeitet wird |

@@ -1,23 +1,33 @@
-# Handover — xoro-epg-enricher (2026-04-25, Rev 2)
+# Handover — xoro-epg-enricher (2026-06-17)
 
-## Status: Plan finalisiert (2× Planner-Revision), bereit für Issue #1 (PoC)
+## Status: Issues #21/#22/#23 geplant, WI-2-Spike abgebrochen
 
 ## Repo
 https://github.com/RangRang416/xoro-epg-enricher
 
-## Finale Architektur
-Xoro → USB-Stick → Synology USB Copy → Python auf NAS → Jellyfin Docker → Android
+## Was diese Session gemacht hat
+- Issues #21/#22/#23 analysiert (Jellyfin + Synology direkt befragt)
+- Planner gespawnt (2× revidiert, Controller-Freigabe), Pläne als GitHub-Kommentare hinterlegt
+- projekt.md aktualisiert (Abschnitt Issues #21/#22/#23 ergänzt)
+- WI-2-Spike gestartet: TypeOptions Episode-Eintrag in Jellyfin API gesetzt (HTTP 204 ✓) — aber NFO-Reader springt trotzdem nicht an
 
-## Nächster Schritt: Issue #1 — PoC manuell (6 Punkte)
-1. Xoro USB-Stick-Format = SATA-Format?
-2. Synology USB Copy funktioniert?
-3. Python ≥ 3.9 auf Synology?
-4. pip install rapidfuzz/chardet/requests auf ARM/x86?
-5. TMDb-API-Key + manueller .nfo-Test
-6. Jellyfin Docker + .ts auf Android abspielen?
+## Jellyfin-Zustand (nach dieser Session)
+- Serien-Library TypeOptions: **Episode-Eintrag ist jetzt vorhanden** (zusätzlich zu Series)
+  - `{"Type": "Episode", "MetadataFetchers": [], ..., "LocalMetadataReaderOrder": ["Nfo"]}`
+  - `EnableInternetProviders: false` — unverändert
+- Kein laufender Prozess, Jellyfin idle
 
-Alle ✓ → Issue #2 starten. Ein ✗ → Eskalation.
+## Offenes Problem: WI-2 (Jellyfin NFO-Reader)
+TypeOptions-Hypothese hat **nicht** funktioniert. Breaking Bad Episoden zeigen weiterhin "Episode 1" ohne Overview, auch nach FullRefresh mit ReplaceAllMetadata=true.
+Mögliche Ursachen (ungeklärt):
+- `LocalMetadataReaderOrder` in TypeOptions ist kein gültiges Feld (nur auf Library-Root-Ebene valide)
+- Item-Refresh liest keine lokalen Dateien neu — Library-Scan nötig
+- Jellyfin-Bug oder Konfiguration tiefer vergraben (z.B. in XML-Config-Dateien auf Synology)
 
-## Issues
-13 offen (#1–#13), #0 geschlossen.
-#1, #2, #7, #8, #9 revidiert (Synology-Architektur). #3–#6, #10–#13 unverändert.
+## Nächste Schritte
+1. **WI-2 neu angehen** — einfacher Ansatz: `POST /Library/Refresh` (vollständiger Library-Scan statt Item-Refresh) und prüfen ob NFOs dann gelesen werden. Alternativ: Jellyfin XML-Config auf Synology direkt lesen.
+2. Falls WI-2 klappt → WI-1 (Enricher-Rewrite, Opus)
+3. Plan in Issues #21/#22/#23 als Kommentare hinterlegt → GitHub als Referenz
+
+## Reihenfolge Work Items
+WI-2 → WI-1 (Opus) → WI-3 → WI-4 → WI-5
