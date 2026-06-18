@@ -49,3 +49,6 @@ ssh synology
 ## Nächste Schritte
 - Issues #21/#22/#23 können nach Jellyfin-Scan + Restart als gelöst markiert werden
 - Neu aufgenommene Serien werden ab jetzt korrekt in Show/Season NN/ abgelegt
+- **Neu beobachtet (2026-06-18):** Breaking Bad (Typ-B) hat keine Episodenbeschreibungen → Enricher hat Typ-B nicht verarbeitet → neues Issue
+- Keine deutschen Serienbeschreibungen / keine Episoden-Poster → separate Issues nächste Session
+- Phase VI (VI-1 Gate: Transcode-Diagnose) danach
