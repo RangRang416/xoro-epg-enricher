@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [2026-06-18] — WI-1/WI-3/WI-4/WI-5: Serien-Vollständig-Fix + Hardening
+
+### Added (WI-3)
+- `migrate_series.py`: einmalige Migration Flat-Folder → `Show/Season NN/` (11 Folder migriert)
+
+### Changed (WI-5)
+- Serien-Library: `EnableRealtimeMonitor=false` — enricher-seitiger `/Library/Refresh` ist einzige Refresh-Quelle; löst inotify-Limit-Erschöpfung (8192 watches)
+- Jellyfin Library-Scan nach Migration getriggert
+
+### Fixed (WI-4)
+- #22: HTTP-500-Absturz war Client-seitiger NPE (stale Item-IDs nach Migration) — kein Server-Fix nötig, löst sich nach Lib-Scan + App-Neustart
+
+---
+
 ## [2026-06-18] — WI-1: Episoden-Overview + Jellyfin-Serien-Struktur
 
 ### Added
