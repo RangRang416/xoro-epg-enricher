@@ -223,6 +223,26 @@ class TVDb:
     def series_details(self, tvdb_id: int) -> dict:
         return self._get(f'/series/{tvdb_id}/extended').get('data', {})
 
+    def episode_overview(self, tvdb_id: int, season: int, episode: int) -> str:
+        try:
+            data = self._get(f'/series/{tvdb_id}/episodes/default',
+                             season=season, episodeNumber=episode)
+            eps = data.get('data', {}).get('episodes', [])
+            if not eps:
+                return ''
+            ep = eps[0]
+            if 'deu' in (ep.get('overviewTranslations') or []):
+                try:
+                    trans = self._get(f'/episodes/{ep["id"]}/translations/deu')
+                    de_ov = (trans.get('data') or {}).get('overview', '')
+                    if de_ov:
+                        return de_ov
+                except Exception:
+                    pass
+            return ep.get('overview', '') or ''
+        except Exception:
+            return ''
+
     def best_series(self, title: str):
         title_lower = title.lower()
         results = self.search_series(title)
@@ -273,13 +293,14 @@ def build_movie_nfo(details: dict, channel: str = '', epg_title: str = '') -> st
 
 
 def build_episode_nfo(series: dict, season: int, episode: int,
-                      channel: str = '', epg_title: str = '') -> str:
+                      channel: str = '', epg_title: str = '',
+                      episode_overview: str = '') -> str:
     root = Element('episodedetails')
     _text(root, 'title',       epg_title or series.get('name', ''))
     _text(root, 'showtitle',   series.get('name', ''))
     _text(root, 'season',      season)
     _text(root, 'episode',     episode)
-    _text(root, 'plot',        series.get('overview', ''))
+    _text(root, 'plot',        episode_overview or epg_title or series.get('overview', ''))
     _text(root, 'year',        (series.get('firstAired') or series.get('year', ''))[:4])
     if channel:
         _text(root, 'studio', channel)
@@ -350,11 +371,37 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
         year  = info.get('year', '')
         name  = f'{title} ({year})' if year else title
     elif kind == 'series' and dest_series:
-        dest_base = Path(dest_series)
-        show  = _sanitize(info.get('showtitle') or folder.name)
-        s, e  = info.get('season', '01'), info.get('episode', '01')
-        ep    = _sanitize(info.get('title', ''))
-        name  = f'{show} - S{s}E{e}' + (f' {ep}' if ep and ep != show else '')
+        show = _sanitize(info.get('showtitle') or folder.name)
+        s, e = info.get('season', '01'), info.get('episode', '01')
+        ep_title = _sanitize(info.get('title', ''))
+        basename = f'{show} S{s}E{e}' + (f' {ep_title}' if ep_title and ep_title != show else '')
+        season_dir = Path(dest_series) / show / f'Season {s}'
+        dest_ts = season_dir / f'{basename}.ts'
+        if dest_ts.exists():
+            print(f'  → bereits vorhanden: {dest_ts}')
+            return
+        if dry_run:
+            print(f'  → [dry-run] würde verschieben → {season_dir}/{basename}.*')
+            return
+        season_dir.mkdir(parents=True, exist_ok=True)
+        # Videodateien verschieben + umbenennen
+        for suffix in ('', '.idx', '.meta', '.pmt'):
+            src = folder / f'record.ts{suffix}'
+            if src.exists():
+                shutil.move(str(src), str(season_dir / f'{basename}.ts{suffix}'))
+        # NFO umbenennen (movie.nfo → basename.nfo)
+        nfo_src = folder / 'movie.nfo'
+        if nfo_src.exists():
+            shutil.move(str(nfo_src), str(season_dir / f'{basename}.nfo'))
+        # Leeren Quellordner entfernen
+        try:
+            folder.rmdir()
+        except Exception:
+            pass
+        print(f'  → verschoben → {season_dir}/{basename}.*')
+        if stats is not None:
+            stats['moved'] = stats.get('moved', 0) + 1
+        return
     else:
         print(f'  → kein Zielordner für Typ "{kind}"')
         return
@@ -430,7 +477,9 @@ def process_folder(folder: Path, tmdb, tvdb, dry_run: bool, force: bool) -> str:
         try:
             series = tvdb.best_series(series_name)
             if series:
-                nfo_content = build_episode_nfo(series, season, episode, channel, epg_title=title)
+                ep_ov = tvdb.episode_overview(series.get('id', 0), season, episode)
+                nfo_content = build_episode_nfo(series, season, episode, channel,
+                                                epg_title=title, episode_overview=ep_ov)
                 poster_url  = tvdb.poster_url(series)
                 print(f'  TVDb:   {series.get("name")} S{season:02d}E{episode:02d}')
             else:
