@@ -77,7 +77,7 @@ def _is_type_a(folder: Path) -> bool:
         return False
 
 
-def _compute_basename(showtitle: str, season: int, episode: int, title: str) -> tuple[str, str, str]:
+def _compute_basename(showtitle: str, season: int, episode: int, title: str):
     """
     Gibt (show, season_str, basename) zurück.
     """
@@ -124,7 +124,7 @@ def _find_source_files(folder: Path) -> dict:
     return files
 
 
-def migrate(base_dir: Path, dry_run: bool) -> tuple[int, int, int]:
+def migrate(base_dir: Path, dry_run: bool):
     """
     Hauptlogik. Gibt (moved, skipped, errors) zurück.
     """
