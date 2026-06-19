@@ -189,6 +189,17 @@ def parse_episode_info(title: str):
     return series, 1, part
 
 
+_SE_RE = re.compile(r'[Ss](\d+)[Ee](\d+)')
+
+
+def parse_se_from_filename(stem: str):
+    """Return (season, episode) from stem like 'Breaking Bad S01E01 Pilot'. (0, 0) if not found."""
+    m = _SE_RE.search(stem)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    return 0, 0
+
+
 class TVDb:
     BASE = 'https://api4.thetvdb.com/v4'
 
@@ -242,6 +253,30 @@ class TVDb:
             return ep.get('overview', '') or ''
         except Exception:
             return ''
+
+    def episode_info(self, tvdb_id: int, season: int, episode: int) -> dict:
+        """Return {'title': ..., 'overview': ...} in DE if available, EN fallback."""
+        try:
+            data = self._get(f'/series/{tvdb_id}/episodes/default',
+                             season=season, episodeNumber=episode)
+            eps = data.get('data', {}).get('episodes', [])
+            if not eps:
+                return {}
+            ep = eps[0]
+            result = {'title': ep.get('name', '') or '', 'overview': ep.get('overview', '') or ''}
+            if 'deu' in (ep.get('overviewTranslations') or []):
+                try:
+                    trans = self._get(f'/episodes/{ep["id"]}/translations/deu')
+                    de = trans.get('data') or {}
+                    if de.get('overview'):
+                        result['overview'] = de['overview']
+                    if de.get('name'):
+                        result['title'] = de['name']
+                except Exception:
+                    pass
+            return result
+        except Exception:
+            return {}
 
     def best_series(self, title: str):
         title_lower = title.lower()
@@ -309,6 +344,23 @@ def build_episode_nfo(series: dict, season: int, episode: int,
         _text(root, 'uniqueid', tvdb_id)
     raw = tostring(root, encoding='unicode')
     return parseString(f'<?xml version="1.0" encoding="UTF-8"?>{raw}').toprettyxml(indent='  ', encoding=None)
+
+
+def build_tvshow_nfo(series: dict) -> str:
+    root = Element('tvshow')
+    _text(root, 'title', series.get('name', ''))
+    _text(root, 'plot', series.get('overview', ''))
+    year = (series.get('firstAired') or series.get('year', ''))[:4]
+    if year:
+        _text(root, 'year', year)
+    tvdb_id = series.get('id') or series.get('tvdb_id', '')
+    if tvdb_id:
+        uid = SubElement(root, 'uniqueid')
+        uid.set('type', 'tvdb')
+        uid.set('default', 'true')
+        uid.text = str(tvdb_id)
+    raw = tostring(root, encoding='unicode')
+    return parseString(f'<?xml version="1.0" encoding="utf-8"?>{raw}').toprettyxml(indent='  ', encoding=None)
 
 
 def build_fallback_nfo(title: str, channel: str = '') -> str:
@@ -539,6 +591,117 @@ def find_pvr_dirs() -> list:
     return found
 
 
+VIDEO_EXTS = {'.ts', '.mkv', '.mp4', '.avi', '.m4v'}
+
+
+def set_options_xml_offline(options_xml: str) -> bool:
+    try:
+        p = Path(options_xml)
+        if not p.exists():
+            print(f'  options.xml nicht gefunden: {options_xml}')
+            return False
+        content = p.read_text(encoding='utf-8')
+        updated = content.replace(
+            '<EnableInternetProviders>true</EnableInternetProviders>',
+            '<EnableInternetProviders>false</EnableInternetProviders>'
+        )
+        if updated == content:
+            print('  EnableInternetProviders bereits false oder nicht gesetzt')
+            return False
+        p.write_text(updated, encoding='utf-8')
+        print('  EnableInternetProviders → false')
+        return True
+    except Exception as e:
+        print(f'  Fehler: {e}')
+        return False
+
+
+def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
+    if not tvdb:
+        print('Fehler: --tvdb-key wird für --scan-existing benötigt.')
+        return {'done': 0, 'skip': 0, 'error': 0}
+
+    stats = {'done': 0, 'skip': 0, 'error': 0}
+    series_cache = {}
+
+    for show_dir in sorted(dest_series.iterdir()):
+        if not show_dir.is_dir() or show_dir.name.startswith('@') or show_dir.name.startswith('.'):
+            continue
+        show_name = show_dir.name
+
+        # tvshow.nfo anlegen falls fehlend
+        tvshow_nfo = show_dir / 'tvshow.nfo'
+        if not tvshow_nfo.exists():
+            print(f'\n[{show_name}] tvshow.nfo fehlt')
+            try:
+                series = tvdb.best_series(show_name)
+                if series:
+                    series_cache[show_name] = series
+                    if dry_run:
+                        print(f'  [dry-run] tvshow.nfo → {series.get("name")}')
+                    else:
+                        tvshow_nfo.write_text(build_tvshow_nfo(series), encoding='utf-8')
+                        print(f'  tvshow.nfo → {series.get("name")}')
+                    time.sleep(0.3)
+                else:
+                    print(f'  TVDb: kein Ergebnis für "{show_name}"')
+            except Exception as e:
+                print(f'  Fehler: {e}')
+
+        # Episoden-NFOs
+        for season_dir in sorted(show_dir.iterdir()):
+            if not season_dir.is_dir() or season_dir.name.startswith('@'):
+                continue
+            folder_season_m = re.search(r'(\d+)', season_dir.name)
+            if not folder_season_m:
+                continue
+            folder_season = int(folder_season_m.group(1))
+
+            for video in sorted(season_dir.iterdir()):
+                if video.suffix.lower() not in VIDEO_EXTS:
+                    continue
+                nfo_path = video.with_suffix('.nfo')
+                if nfo_path.exists():
+                    stats['skip'] += 1
+                    continue
+
+                file_season, ep_num = parse_se_from_filename(video.stem)
+                if not ep_num:
+                    print(f'  [!] Kein S/E in: {video.name}')
+                    stats['skip'] += 1
+                    continue
+                season_num = file_season if file_season else folder_season
+
+                print(f'\n[{show_name}] S{season_num:02d}E{ep_num:02d} – {video.name}')
+
+                try:
+                    if show_name not in series_cache:
+                        series_cache[show_name] = tvdb.best_series(show_name)
+                    series = series_cache.get(show_name)
+                    if not series:
+                        print(f'  TVDb: kein Ergebnis für "{show_name}"')
+                        stats['error'] += 1
+                        continue
+
+                    ep = tvdb.episode_info(series.get('id', 0), season_num, ep_num)
+                    nfo_content = build_episode_nfo(series, season_num, ep_num,
+                                                   epg_title=ep.get('title', ''),
+                                                   episode_overview=ep.get('overview', ''))
+                    if dry_run:
+                        print(f'  [dry-run] {nfo_path.name}')
+                    else:
+                        nfo_path.write_text(nfo_content, encoding='utf-8')
+                        print(f'  NFO → {nfo_path.name}')
+                    stats['done'] += 1
+                    time.sleep(0.3)
+                except Exception as e:
+                    print(f'  Fehler: {e}')
+                    stats['error'] += 1
+
+    print(f'\nScan-Existing: {stats["done"]} NFOs erstellt, {stats["skip"]} übersprungen, {stats["error"]} Fehler')
+    return stats
+
+
 def main():
     parser = argparse.ArgumentParser(description='Xoro PVR Enricher')
     parser.add_argument('dirs', nargs='*')
@@ -552,12 +715,28 @@ def main():
     parser.add_argument('--dest-movies',    default=None, help='Zielordner für Filme nach Enrichment')
     parser.add_argument('--dest-series',    default=None, help='Zielordner für Serien nach Enrichment')
     parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
+    parser.add_argument('--scan-existing',  action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
+    parser.add_argument('--options-xml',    default='/volume1/dvb-library/jellyfin-config/root/default/Serien/options.xml',
+                        help='Pfad zu Jellyfin Serien-options.xml (für AK6 Offline-Modus)')
     args = parser.parse_args()
 
     tmdb = TMDb(args.tmdb_key, args.language) if args.tmdb_key else None
     tvdb = TVDb(args.tvdb_key) if args.tvdb_key else None
     if not tmdb and not tvdb:
         print('Hinweis: kein API-Key → nur Fallback-NFO')
+
+    if args.scan_existing:
+        if not args.dest_series:
+            print('Fehler: --dest-series muss für --scan-existing angegeben werden.')
+            sys.exit(1)
+        scan_stats = scan_existing_series(Path(args.dest_series), tvdb, args.dry_run)
+        if not args.dry_run and scan_stats['done'] > 0:
+            print('\nSetze Offline-Modus...')
+            set_options_xml_offline(args.options_xml)
+            if args.jellyfin_url and args.jellyfin_key:
+                print('Jellyfin-Refresh...')
+                print('OK' if jellyfin_refresh(args.jellyfin_url, args.jellyfin_key) else 'Fehlgeschlagen')
+        return
 
     if args.dirs:
         base_dirs = [Path(d) for d in args.dirs]
