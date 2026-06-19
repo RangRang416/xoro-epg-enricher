@@ -11,31 +11,42 @@ https://github.com/RangRang416/xoro-epg-enricher
   - Block 2: `P.D. James Adam Dalgliesh/Season 11/` → 3 Episoden Original Sin 1997
   - Block 3: `Death Comes to Pemberley (2013)/Season 01/` → 2 Episoden
 - NFOs mit Platzhalter-Titeln (kein TVDb-Key verfügbar)
-- Script `migrate_sclotland.py` liegt auf NAS + im Repo
+- Script `migrate_sclotland.py` liegt auf NAS + im Repo (Commit 0d8d5e2)
 
 ### lockdata + EnableInternetProviders
 - 2701 NFOs mit `<lockdata>true</lockdata>` versehen (Serien + Filme)
 - 11 Film-NFOs übersprungen (falsche Zeichenkodierung: Star Wars, HdR, Schwarzenegger)
 - `EnableInternetProviders=true` in Serien/options.xml gesetzt
+- TheTVDB Plugin von Bernd installiert + Scan lief
 - Jellyfin neu gestartet
-
-## Offenes Problem: Englische NFO-Beschreibungen
-Fargo (und vermutlich weitere Serien) hat NFO mit englischer Beschreibung.
-Durch lockdata=true kann TheTVDB diese NICHT korrigieren.
-
-Lösung: lockdata selektiv aus NFOs mit englischen Inhalten entfernen.
-→ Ruben hat Session beendet, Entscheidung offen.
-
-## Rubens Sentiment
-"Das ganze Projekt ist ein Fass ohne Boden" — jedes Fix zieht neues Problem nach sich.
-Nächste Session: erst Scope-Entscheidung bevor weitergearbeitet wird.
-
-## Offene Issues
-- #14: Web-Dashboard (Optional)
-- #13: Serien/Episoden-Support (Optional)
 
 ## Jellyfin-Status
 - EnableInternetProviders: true
+- PreferredMetadataLanguage: de / MetadataCountryCode: DE
 - lockdata: 2701 NFOs gesperrt
-- TheTVDB Plugin: installiert + Scan läuft
-- EnableRealtimeMonitor: steht auf true (war mal auf false gesetzt — prüfen)
+- SaveLocalMetadata: false (Jellyfin schreibt NICHT in NFO-Dateien zurück)
+- EnableRealtimeMonitor: steht auf true (war früher mal auf false — prüfen ob Problem)
+
+## Bekannter Ist-Zustand NFO-Beschreibungen
+- Death in Paradise, Columbo → deutsche Beschreibungen ✅ (durch lockdata geschützt)
+- Fargo → englische Beschreibung, durch lockdata blockiert ❌
+- Weitere Serien mit englischen Beschreibungen: unbekannt, nicht systematisch geprüft
+
+## Nächste Session — Ziel: alle Serien auf Deutsch
+
+**Bernd will deutsche Beschreibungen für alle Serien.**
+
+### Plan (ein Schritt, überschaubar):
+`lockdata` aus `tvshow.nfo`-Dateien mit englischen Beschreibungen entfernen.
+TheTVDB holt dann automatisch deutsche Daten (PreferredMetadataLanguage=de).
+Episode-NFOs behalten lockdata (Enricher-Daten sind korrekt).
+
+**Zwei Optionen — Bernd entscheidet:**
+- A) **Gezielt**: nur englische tvshow.nfo identifizieren und lockdata entfernen
+- B) **Pauschal**: lockdata aus ALLEN tvshow.nfo entfernen → TheTVDB überschreibt alle mit Deutsch
+
+Nach lockdata-Entfernung: einmaligen Jellyfin-Scan anstoßen (Bernd gibt OK, blockiert NAS ~1h).
+
+### Offene Issues
+- #14: Web-Dashboard (Optional, niedrige Prio)
+- #13: Serien/Episoden-Support (Optional, niedrige Prio)
