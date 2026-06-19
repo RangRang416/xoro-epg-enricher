@@ -1,54 +1,97 @@
-# Handover — xoro-epg-enricher (2026-06-18)
-
-## Status: WI-1 bis WI-5 abgeschlossen
+# Handover — xoro-epg-enricher (2026-06-19)
 
 ## Repo
 https://github.com/RangRang416/xoro-epg-enricher
 
-## Was diese Session gemacht hat
+## Was heute repariert wurde (kritischer Regression-Fix)
 
-### WI-2 (Spike)
-- Befund: `movie.nfo` wird von Jellyfin für Episode-Items ignoriert → `{basename}.nfo` nötig
-- TypeOptions Episode-Eintrag war bereits gesetzt ✓
+### Serien-Library war komplett unsichtbar
+Ursache: Rubens manuelle Pfad-Änderung in Jellyfin-UI hat `ParentId` der Serien-CollectionFolder
+von `UserRootFolder` auf `AggregateFolder` geändert → Jellyfin baut User-Views nur aus
+UserRootFolder-Kindern → Serien verschwand von Startseite.
 
-### WI-1 (enricher.py)
-- `TVDb.episode_overview()`: deutsche Episode-Overview via v4 API, EN-Fallback
-- `build_episode_nfo`: Fallback-Kette episode_overview → epg_title → series.overview
-- `move_recording` Serien-Branch: `Show/Season NN/` + pro-Datei-Move + NFO-Rename
-- Commit: a732038
+Fixes (direkt in SQLite + XML):
+1. `ParentId` Serien → zurück auf `E9D5075A-555C-1CBC-394E-EC4CEF295274` (UserRootFolder) ✅
+2. Duplicate `/config/root/default/Serien` aus `PhysicalLocationsList` entfernt ✅
+3. LibraryOptions via API gesetzt ✅
+4. `options.xml` korrigiert: `EnableRealtimeMonitor=false`, `EnableInternetProviders=true` ✅
+5. TheTVDB aus options.xml entfernt (Plugin nicht installiert) ✅
 
-### WI-3 (migrate_series.py)
-- 11 Enricher-Flat-Folder nach `Show/Season NN/` migriert, 0 Fehler
-- Alle Typ-B-Ordner (bestehende Serien) unberührt
-- Commit: 5d0cf91, Fix: 0428490
+**ENTSCHIEDEN:** `EnableInternetProviders=true` bleibt bis #24 abgeschlossen ist (Typ-B ohne NFO brauchen TMDb als Fallback). Nach #24: auf `false` → in AK6 von #24 verankert.
 
-### WI-4 (Diagnose)
-- #22-Crash: Client-seitiger NPE im Android TV nach stale Item-IDs (Post-Migration)
-- Server meldet `Guid can't be empty` bei `/Items/{stale-id}` → kein Server-Fix nötig
-- Löst sich nach vollständigem Library-Scan + App-Neustart
+## Dalgliesh NFOs — geschrieben, noch nicht von Jellyfin übernommen
 
-### WI-5 (Hardening)
-- `EnableRealtimeMonitor=false` in Serien/options.xml (war 8192 inotify-Limit erschöpft)
-- `AutomaticRefreshIntervalDays=0` bestätigt ✓
-- Einzige Refresh-Quelle: enricher-seitiger `POST /Library/Refresh`
+Folgendes wurde geschrieben:
+- `/volume1/1/Serien/Dalgliesh (2021)/tvshow.nfo` — DE-Serienbeschreibung, TVDb-ID 400910
+- S02E05 NFO: DE-Titel "Im Saal der Mörder – Teil 1", DE-Plot, TVDb-ID 9703949
+- S02E06 NFO: DE-Titel "Im Saal der Mörder – Teil 2", DE-Plot, TVDb-ID 9703950
 
-## NAS-Zustand nach dieser Session
-- `/volume1/dvb-library/enricher.py` — WI-1 deployed
-- `/volume1/dvb-library/migrate_series.py` — WI-3 deployed (kann bei Bedarf nochmals laufen)
-- `/volume1/1/Serien/` — Flat-Folder migriert → Show/Season NN/ Struktur
-- Jellyfin läuft Library-Scan (kann ~10-20 Min dauern bei 1GB RAM)
-- Jellyfin wird nach Scan Restart benötigen damit options.xml-Änderung (RealtimeMonitor=false) wirkt
+Item-Refresh via API getriggert (HTTP 204) — Jellyfin zeigt aber noch alten Stand.
+**Nächster Schritt:** Library-Scan (erst nach Rubens OK — blockiert NAS ~1h) ODER
+manuell in Jellyfin-UI: Serien → Dalgliesh → "Metadaten aktualisieren"
 
-## Jellyfin-Neustart nach Scan
-Wenn Scan abgeschlossen: Container neu starten damit RealtimeMonitor-Änderung aktiv wird.
-```
-ssh synology
-/usr/local/bin/docker restart jellyfin
-```
+TVDb hat deutsche Daten für Dalgliesh bestätigt. Enricher-Code `episode_overview()` ist korrekt.
+Problem war nur: alte NFOs vor WI-1 geschrieben, Enricher überschreibt keine bestehenden NFOs.
 
-## Nächste Schritte
-- Issues #21/#22/#23 können nach Jellyfin-Scan + Restart als gelöst markiert werden
-- Neu aufgenommene Serien werden ab jetzt korrekt in Show/Season NN/ abgelegt
-- **Neu beobachtet (2026-06-18):** Breaking Bad (Typ-B) hat keine Episodenbeschreibungen → Enricher hat Typ-B nicht verarbeitet → neues Issue
-- Keine deutschen Serienbeschreibungen / keine Episoden-Poster → separate Issues nächste Session
-- Phase VI (VI-1 Gate: Transcode-Diagnose) danach
+## Offene Issues
+
+### #22 (HTTP 500 nach Episode)
+Laut letzter Handover: "Client-seitiger NPE, kein Server-Fix nötig"
+AK3-Retest (kein HTTP 500) noch ausstehend.
+
+### #23 (Watched-Status / Nächste Folge)
+WI-1/WI-3 implementiert. Verifikation ausstehend — braucht Library-Scan + Android-TV-Test.
+
+### #24 (--scan-existing)
+Ruben hat richtig bemängelt: Plan hat Typ-B-Serien nicht berücksichtigt.
+
+Befund Typ-B-Serien heute geprüft:
+- ~35 Serien haben korrekte NFOs vom Download (Breaking Bad, GoT, Sopranos...) ✅
+- Breaking Bad Struktur korrekt: `Show/Breaking.Bad.S01/Episode.mkv+.nfo`
+- Columbo: liegt entpackt vor, in --scan-existing einzubeziehen ✅
+
+Fehlende tvshow.nfo (5 Serien — Dalgliesh heute erledigt):
+- Archie (Enricher-Version)
+- Geheimnisse des Kaiserreichs
+- Goulag Une histoire soviétique
+- Miss Marple
+- Wild Congo
+
+## Jellyfin-Status
+- Serien-Library: wieder auf Startseite ✅
+- 42 Serien erkannt (inkl. Duplikate: Archie 2×, Dalgliesh 2×)
+- TheTVDB Plugin: NICHT installiert (nur TMDb, OMDb, MusicBrainz, AudioDB, Studio Images)
+- Kein Library-Scan diese Session getriggert
+
+## Heute abgeschlossen (2026-06-19)
+
+- **Dalgliesh S02E05/E06** ✅ — NFOs korrekt, Library-Scan hat Episoden neu indiziert
+- **#17** ✅ — geschlossen (bereits behoben)
+- **#22** ✅ — InactiveSessionThreshold auf 90 Min gesetzt, HTTP 500 behoben
+- **#23** ✅ — Watched-Status + "Als nächstes" funktioniert
+- **#24** ✅ — --scan-existing implementiert (113 NFOs, 0 Fehler), EnableInternetProviders=false, Commit 1a042c0
+- **#25** NEU — Sclotland Yard Block (title-basierter Lookup, MP4, Death Comes to Pemberley)
+
+## Jellyfin-Status
+- InactiveSessionThreshold: 90 Min (Session-Timeout Fix)
+- EnableInternetProviders: false (Offline-Modus, alle NFOs vorhanden)
+- Library-Scan läuft im Hintergrund (nach --scan-existing getriggert)
+
+## #25 Plan (Planner-Output 2026-06-19, FREIGABE AUSSTEHEND)
+
+**WI-25.1+2 (Opus):** `migrate_sclotland.py` — Dry-run-Mapping-Report. Je Block eigene Lookup-Strategie:
+- Block 1 (Mord an heiliger Stätte, 2 Xoro-MP4): Episodentitel-Suche TVDb
+- Block 2 (One Sine 1997 / Original Sin 1997): Wort-zu-Zahl ("Episode Two"→S1E2)
+- Block 3 (Death Comes to Pemberley): E-ohne-S-Regex, Ziel AUSSERHALB Dalgliesh-Ordner
+
+**WI-25.3 (Sonnet):** Move + NFO-Write — NUR nach Rubens Bestätigung des Dry-run-Reports.
+Kritische Frage VOR WI-25.3: Sind die 2 Xoro-MP4 in Block 1 zwei separate Episoden oder zwei Teile einer Episode?
+
+Importiert: `TVDb`, `build_episode_nfo`, `build_tvshow_nfo`, `_sanitize` aus `enricher.py`
+Vorlage: `migrate_series.py` im Repo
+
+## Nächste Session (Prioritäten)
+1. **#25 Freigabe** von Ruben einholen (Plan oben)
+2. **projekt.md aktualisieren** (Planner-Pflicht vor Impl)
+3. **WI-25.1+2** Opus-Spawn: `migrate_sclotland.py` + Dry-run
+4. Dry-run-Report Ruben vorlegen → Bestätigung → WI-25.3 (Sonnet)
