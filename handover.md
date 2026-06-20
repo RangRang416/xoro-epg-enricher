@@ -1,52 +1,39 @@
-# Handover — xoro-epg-enricher (2026-06-20)
+# Handover — xoro-epg-enricher (2026-06-20 S2)
 
 ## Repo
 https://github.com/RangRang416/xoro-epg-enricher
 
 ## Diese Session
 
-### #25 abgeschlossen
-- 7 Dateien aus `Adam Dalgliesh, Sclotland Yard/` in Jellyfin-Struktur verschoben:
-  - Block 1: `P.D. James Adam Dalgliesh/Season 06/` → 2 MP4 als -part1/-part2 (1 Episode)
-  - Block 2: `P.D. James Adam Dalgliesh/Season 11/` → 3 Episoden Original Sin 1997
-  - Block 3: `Death Comes to Pemberley (2013)/Season 01/` → 2 Episoden
-- NFOs mit Platzhalter-Titeln (kein TVDb-Key verfügbar)
-- Script `migrate_sclotland.py` liegt auf NAS + im Repo (Commit 0d8d5e2)
+### lockdata-Bereinigung (#26)
+- 38 tvshow.nfo: `<lockdata>true</lockdata>` entfernt (englische/spanische Plots)
+- 6 tvshow.nfo bleiben gesperrt (Breaking Bad, Dalgliesh 2021, Geheimnisse des Kaiserreichs, Goulag, Down Cemetery Road, Jim Bergerac)
+- Ziel: Jellyfin-Scan holt deutsche Beschreibungen via TheTVDB
 
-### lockdata + EnableInternetProviders
-- 2701 NFOs mit `<lockdata>true</lockdata>` versehen (Serien + Filme)
-- 11 Film-NFOs übersprungen (falsche Zeichenkodierung: Star Wars, HdR, Schwarzenegger)
-- `EnableInternetProviders=true` in Serien/options.xml gesetzt
-- TheTVDB Plugin von Bernd installiert + Scan lief
-- Jellyfin neu gestartet
+### normalize-episodes (#27, Commit e32759f)
+- Neuer Flag `--normalize-episodes` in enricher.py implementiert und deployed
+- 54 Episode-NFOs für Midsomer Murders (Staffeln 1-11) erstellt
+- Logik: TVDb-ID aus tvshow.nfo → Episodennummer aus Dateiname (z.B. 7p-704 → S07E04)
+- NxEN-Format (z.B. Voyager `1xE01`) wird erkannt → korrekt übersprungen
+- Episode-00-Dateien (7p-100) übersprungen
+- 1 Fehler: `7p-809` → S08E09 existiert nicht in TVDb (Season 8 hat 8 Folgen)
 
-## Jellyfin-Status
-- EnableInternetProviders: true
-- PreferredMetadataLanguage: de / MetadataCountryCode: DE
-- lockdata: 2701 NFOs gesperrt
-- SaveLocalMetadata: false (Jellyfin schreibt NICHT in NFO-Dateien zurück)
-- EnableRealtimeMonitor: steht auf true (war früher mal auf false — prüfen ob Problem)
+## Issues
+- #25: CLOSED (Sclotland Yard, letzte Session)
+- #26: OFFEN — Jellyfin-Scan ausstehend (Bernd gibt OK)
+- #27: CLOSED nach Commit e32759f
+- #13, #14: Optional, niedrige Prio
 
-## Bekannter Ist-Zustand NFO-Beschreibungen
-- Death in Paradise, Columbo → deutsche Beschreibungen ✅ (durch lockdata geschützt)
-- Fargo → englische Beschreibung, durch lockdata blockiert ❌
-- Weitere Serien mit englischen Beschreibungen: unbekannt, nicht systematisch geprüft
+## DSM-Task (täglich 09:00)
+- Schritt 1: normaler Enricher (neue Xoro-Aufnahmen)
+- Schritt 2: `--normalize-episodes` (neue Serien mit kryptischen Dateinamen → automatisch NFOs)
+- Task-Datei: `/usr/syno/etc/synoschedule.d/root/3.task`
 
-## Nächste Session — Ziel: alle Serien auf Deutsch
+## Nächster Schritt
+**Jellyfin Library-Scan** — Bernd gibt OK (blockiert NAS ~1-2h):
+- TheTVDB holt deutsche Beschreibungen für 38 Serien
+- Jellyfin liest neue Episode-NFOs für Midsomer Murders
 
-**Bernd will deutsche Beschreibungen für alle Serien.**
-
-### Plan (ein Schritt, überschaubar):
-`lockdata` aus `tvshow.nfo`-Dateien mit englischen Beschreibungen entfernen.
-TheTVDB holt dann automatisch deutsche Daten (PreferredMetadataLanguage=de).
-Episode-NFOs behalten lockdata (Enricher-Daten sind korrekt).
-
-**Zwei Optionen — Bernd entscheidet:**
-- A) **Gezielt**: nur englische tvshow.nfo identifizieren und lockdata entfernen
-- B) **Pauschal**: lockdata aus ALLEN tvshow.nfo entfernen → TheTVDB überschreibt alle mit Deutsch
-
-Nach lockdata-Entfernung: einmaligen Jellyfin-Scan anstoßen (Bernd gibt OK, blockiert NAS ~1h).
-
-### Offene Issues
-- #14: Web-Dashboard (Optional, niedrige Prio)
-- #13: Serien/Episoden-Support (Optional, niedrige Prio)
+## Offene Kleinigkeiten
+- `7p-809.mkv` (S08E09) bleibt ohne NFO — evtl. Sonderepisode oder falsch nummeriert
+- Down Cemetery Road + Jim Bergerac: englische Beschreibungen, aber lockdata behalten (Zoë/Étrangers-Heuristik) — manuell korrigierbar bei Bedarf
