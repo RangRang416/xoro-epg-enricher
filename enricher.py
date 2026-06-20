@@ -189,15 +189,34 @@ def parse_episode_info(title: str):
     return series, 1, part
 
 
-_SE_RE = re.compile(r'[Ss](\d+)[Ee](\d+)')
+_SE_RE = re.compile(r'[Ss](\d+)[Ee](\d+)|(\d+)[xX][Ee](\d+)')
 
 
 def parse_se_from_filename(stem: str):
-    """Return (season, episode) from stem like 'Breaking Bad S01E01 Pilot'. (0, 0) if not found."""
+    """Return (season, episode) from stem like 'Breaking Bad S01E01' or '1xE01'. (0, 0) if not found."""
     m = _SE_RE.search(stem)
     if m:
-        return int(m.group(1)), int(m.group(2))
+        if m.group(1):
+            return int(m.group(1)), int(m.group(2))
+        return int(m.group(3)), int(m.group(4))
     return 0, 0
+
+
+def extract_episode_from_number(stem: str, season_num: int) -> int:
+    """Extract episode from filenames like '7p-704' where 704 = Season 7, Episode 04.
+    Returns episode number (1-99), 0 if no pattern found, -1 if episode=00 (skip).
+    """
+    m = re.search(r'-(\d{3,4})(?:\D|$)', stem)
+    if not m:
+        return 0
+    num = int(m.group(1))
+    if num // 100 == season_num:
+        ep = num % 100
+        if ep == 0:
+            return -1  # e.g. 7p-100: Episode 00, kein TVDb-Eintrag → überspringen
+        if 1 <= ep <= 99:
+            return ep
+    return 0
 
 
 class TVDb:
@@ -616,6 +635,107 @@ def set_options_xml_offline(options_xml: str) -> bool:
         return False
 
 
+def read_tvdb_id_from_nfo(nfo_path: Path) -> int:
+    """Read TVDb ID from tvshow.nfo <uniqueid type="tvdb"> element."""
+    try:
+        root = _ET.parse(nfo_path).getroot()
+        for uid in root.findall('uniqueid'):
+            try:
+                return int(uid.text)
+            except (ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    return 0
+
+
+def normalize_episode_nfos(dest_series: Path, tvdb, dry_run: bool) -> dict:
+    """Create episode NFOs for series with non-standard filenames (no S/E pattern).
+
+    Reads TVDb ID from tvshow.nfo, maps sorted videos in each season folder
+    sequentially to TVDb episodes starting at episode 1.
+    """
+    if not tvdb:
+        print('Fehler: --tvdb-key wird für --normalize-episodes benötigt.')
+        return {'done': 0, 'skip': 0, 'error': 0}
+
+    stats = {'done': 0, 'skip': 0, 'error': 0}
+
+    for show_dir in sorted(dest_series.iterdir()):
+        if not show_dir.is_dir() or show_dir.name.startswith('@') or show_dir.name.startswith('.'):
+            continue
+
+        tvshow_nfo = show_dir / 'tvshow.nfo'
+        if not tvshow_nfo.exists():
+            continue
+
+        tvdb_id = read_tvdb_id_from_nfo(tvshow_nfo)
+        if not tvdb_id:
+            continue
+
+        show_name = show_dir.name
+
+        for season_dir in sorted(show_dir.iterdir()):
+            if not season_dir.is_dir() or season_dir.name.startswith('@'):
+                continue
+            season_m = re.search(r'(\d+)', season_dir.name)
+            if not season_m:
+                continue
+            season_num = int(season_m.group(1))
+
+            to_process = []
+            for video in sorted(season_dir.iterdir()):
+                if video.suffix.lower() not in VIDEO_EXTS:
+                    continue
+                if video.with_suffix('.nfo').exists():
+                    stats['skip'] += 1
+                    continue
+                if parse_se_from_filename(video.stem)[1]:
+                    stats['skip'] += 1
+                    continue
+                to_process.append(video)
+
+            if not to_process:
+                continue
+
+            print(f'\n[{show_name}] Season {season_num}: {len(to_process)} Dateien ohne NFO')
+
+            for i, video in enumerate(to_process, start=1):
+                ep_from_name = extract_episode_from_number(video.stem, season_num)
+                if ep_from_name == -1:
+                    print(f'  {video.name} → übersprungen (Episode 00)')
+                    stats['skip'] += 1
+                    continue
+                ep_num = ep_from_name or i
+                print(f'  {video.name} → S{season_num:02d}E{ep_num:02d}')
+                try:
+                    ep = tvdb.episode_info(tvdb_id, season_num, ep_num)
+                    if not ep:
+                        print(f'    TVDb: kein Ergebnis für S{season_num:02d}E{i:02d}')
+                        stats['error'] += 1
+                        continue
+                    series_stub = {'id': tvdb_id, 'name': show_name}
+                    nfo_content = build_episode_nfo(
+                        series_stub, season_num, ep_num,
+                        epg_title=ep.get('title', ''),
+                        episode_overview=ep.get('overview', '')
+                    )
+                    nfo_path = video.with_suffix('.nfo')
+                    if dry_run:
+                        print(f'    [dry-run] {nfo_path.name}: {ep.get("title", "?")}')
+                    else:
+                        nfo_path.write_text(nfo_content, encoding='utf-8')
+                        print(f'    NFO → {nfo_path.name}: {ep.get("title", "?")}')
+                    stats['done'] += 1
+                    time.sleep(0.3)
+                except Exception as e:
+                    print(f'    Fehler: {e}')
+                    stats['error'] += 1
+
+    print(f'\nNormalize-Episodes: {stats["done"]} NFOs erstellt, {stats["skip"]} übersprungen, {stats["error"]} Fehler')
+    return stats
+
+
 def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
     if not tvdb:
         print('Fehler: --tvdb-key wird für --scan-existing benötigt.')
@@ -715,7 +835,8 @@ def main():
     parser.add_argument('--dest-movies',    default=None, help='Zielordner für Filme nach Enrichment')
     parser.add_argument('--dest-series',    default=None, help='Zielordner für Serien nach Enrichment')
     parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
-    parser.add_argument('--scan-existing',  action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
+    parser.add_argument('--scan-existing',      action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
+    parser.add_argument('--normalize-episodes', action='store_true', help='Episode-NFOs für Serien mit kryptischen Dateinamen erstellen (TVDb-ID aus tvshow.nfo)')
     parser.add_argument('--options-xml',    default='/volume1/dvb-library/jellyfin-config/root/default/Serien/options.xml',
                         help='Pfad zu Jellyfin Serien-options.xml (für AK6 Offline-Modus)')
     args = parser.parse_args()
@@ -724,6 +845,16 @@ def main():
     tvdb = TVDb(args.tvdb_key) if args.tvdb_key else None
     if not tmdb and not tvdb:
         print('Hinweis: kein API-Key → nur Fallback-NFO')
+
+    if args.normalize_episodes:
+        if not args.dest_series:
+            print('Fehler: --dest-series muss für --normalize-episodes angegeben werden.')
+            sys.exit(1)
+        norm_stats = normalize_episode_nfos(Path(args.dest_series), tvdb, args.dry_run)
+        if not args.dry_run and norm_stats['done'] > 0 and args.jellyfin_url and args.jellyfin_key:
+            print('Jellyfin-Refresh...')
+            print('OK' if jellyfin_refresh(args.jellyfin_url, args.jellyfin_key) else 'Fehlgeschlagen')
+        return
 
     if args.scan_existing:
         if not args.dest_series:

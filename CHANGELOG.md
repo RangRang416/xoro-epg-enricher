@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [2026-06-20] — Metadaten-Bereinigung + normalize-episodes
+
+### Added
+- `enricher.py --normalize-episodes`: Erstellt Episode-NFOs für Serien mit kryptischen Dateinamen (kein S01E01-Muster). Liest TVDb-ID aus tvshow.nfo, mappt sortierte Videos sequenziell auf TVDb-Episodenliste.
+
+### Changed
+- 38 `tvshow.nfo`-Dateien: `<lockdata>true</lockdata>` entfernt (englische/spanische Beschreibungen) → TheTVDB kann beim nächsten Jellyfin-Scan deutsche Metadaten holen
+- 6 `tvshow.nfo`-Dateien mit deutschen/franz. Beschreibungen bleiben unverändert (Breaking Bad, Dalgliesh 2021, Geheimnisse des Kaiserreichs, Goulag, Down Cemetery Road, Jim Bergerac)
+
 ## [2026-06-18] — WI-1/WI-3/WI-4/WI-5: Serien-Vollständig-Fix + Hardening
 
 ### Added (WI-3)
