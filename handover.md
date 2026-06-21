@@ -1,25 +1,26 @@
-# Handover — xoro-epg-enricher (2026-06-20 S4)
+# Handover — xoro-epg-enricher (2026-06-21)
 
 ## Repo
 https://github.com/RangRang416/xoro-epg-enricher
 
-## Abgeschlossen (letzte Sessionen)
-- #27 --normalize-episodes: 54 Midsomer-NFOs, DSM-Task täglich 09:00 (Commit e32759f)
-- #26 lockdata: 38 tvshow.nfo entsperrt, 6 bleiben gesperrt
-- Fargo S05: Pack-Ordner aufgelöst, 10 Episoden flach
+## Abgeschlossen diese Session
+- **#28** --flatten-downloads: 714 Dateien, 39 Ordner (Commit f6e879a), DSM-Task 3 erweitert
+- **#26** Verifikation: GoT deutsch ✓, Fargo/Midsomer englisch (kein DE-Content in TVDb)
+- **Midsomer S01-S06**: 27 Jellyfin-Items refreshed (NFOs von normalize-episodes eingelesen)
+- **Midsomer S04**: 6 NFOs manuell erstellt (7p-Kodierung, in Unterordner Inspector.Barnaby.S04.GERMAN.AC3.720p.HDTV)
+- **Midsomer S01 Korrektur**: 7p-100=Pilot(S01E00), 7p-101=S01E02..7p-104=S01E05 — NFOs+Refresh
+- **Der Therapeut von Nebenan**: In Serienordner verschoben, tvshow.nfo+episode NFO erstellt
 
-## Offene Issues
-- **#26**: OFFEN — Scan-Verifikation ausstehend (dt. Beschreibungen Fargo/Midsomer/GoT?)
-- **#28**: NEU — --flatten-downloads Feature
+## Issues
+- **#26**: Kann geschlossen werden (Verifikation abgeschlossen)
+- **#28**: Kann geschlossen werden (implementiert + deployed)
 
-## Nächste Session — #28 implementieren
-Problem: Wednesday + Vikings haben verschachtelte Ordnerstrukturen
-- Wednesday: `S01/EpisodeName/file.mkv` (2 Ebenen, + Sample-Ordner)
-- Vikings: `Vikings 2/EpisodeName/file.mkv` (3 Ebenen, Staffel-Ordner falsch benannt)
-- Serien-Pfad auf NAS: `/volume1/1/Serien/`
-- Enricher-Pfad auf NAS: `/volume1/dvb-library/enricher.py`
-- DSM-Task 3: täglich 09:00, nach Impl um --flatten-downloads erweitern
+## NAS-Pfade
+- Serien: `/volume1/1/Serien/`
+- Enricher: `/volume1/dvb-library/enricher.py`
+- DSM-Task 3: flatten → enrich → normalize-episodes (täglich 09:00)
 
 ## Offene Kleinigkeiten
-- `7p-809.mkv` (S08E09 Midsomer) bleibt ohne NFO (existiert nicht in TVDb)
-- Down Cemetery Road + Jim Bergerac: englische Beschreibungen, lockdata behalten
+- `7p-809.mkv` (S08E09 Midsomer): Fallback-NFO erstellt, echter Episodentitel unbekannt
+- `Der Therapeut von Nebenan`: Jellyfin-Scan nötig damit neuer Ordner erkannt wird
+- S02-S06 Midsomer: Verschiebung wie S01 prüfen (nur S01 bestätigt wegen Pilotfilm)
