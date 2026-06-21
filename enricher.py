@@ -190,6 +190,8 @@ def parse_episode_info(title: str):
 
 
 _SE_RE = re.compile(r'[Ss](\d+)[Ee](\d+)|(\d+)[xX][Ee](\d+)')
+_SEASON_RE = re.compile(r'^(?:Season|Staffel|S)\s*0*(\d+)$', re.I)
+_SKIP_DIRS = {'sample', 'subs', '@eadir'}
 
 
 def parse_se_from_filename(stem: str):
@@ -736,6 +738,129 @@ def normalize_episode_nfos(dest_series: Path, tvdb, dry_run: bool) -> dict:
     return stats
 
 
+def _infer_season(ep_folders: list) -> int:
+    """Infer season number from episode folder names or video filenames inside."""
+    for ep_dir in ep_folders:
+        m = _SE_RE.search(ep_dir.name)
+        if m:
+            return int(m.group(1) or m.group(3))
+        for f in ep_dir.iterdir():
+            if f.suffix.lower() in VIDEO_EXTS and not f.name.startswith('@'):
+                m = _SE_RE.search(f.stem)
+                if m:
+                    return int(m.group(1) or m.group(3))
+    return 0
+
+
+def flatten_downloads(series_dir: Path, dry_run: bool) -> dict:
+    """Flatten nested episode-folder structures so Jellyfin can scan them.
+
+    Handles two patterns:
+      A) Series/Season XX/EpisodeFolder/file.mkv   (e.g. Wednesday)
+      B) Series/WrongName N/EpisodeFolder/file.mkv (e.g. Vikings, wrongly-named season folder)
+
+    Moves video + .nfo files out of episode sub-folders into the season folder.
+    Deletes Sample/ sub-folders. Renames wrongly-named season folders to "Season XX".
+    @eaDir and Subs are left untouched.
+    """
+    if not series_dir.is_dir():
+        print(f'Fehler: Pfad nicht gefunden: {series_dir}')
+        return {'moved': 0, 'renamed': 0, 'skipped': 0}
+
+    stats = {'moved': 0, 'renamed': 0, 'skipped': 0}
+    MOVE_EXTS = VIDEO_EXTS | {'.nfo'}
+
+    for show_dir in sorted(series_dir.iterdir()):
+        if not show_dir.is_dir() or show_dir.name.startswith(('@', '.')):
+            continue
+
+        had_output = False
+
+        for season_dir in sorted(show_dir.iterdir()):
+            if not season_dir.is_dir() or season_dir.name.startswith(('@', '.')):
+                continue
+            if season_dir.name.lower() in _SKIP_DIRS:
+                continue
+
+            # Collect episode sub-folders (dirs that directly contain video files)
+            ep_folders = []
+            for item in sorted(season_dir.iterdir()):
+                if not item.is_dir() or item.name.startswith('@') or item.name.lower() in _SKIP_DIRS:
+                    continue
+                if any(f.suffix.lower() in VIDEO_EXTS
+                       for f in item.iterdir()
+                       if not f.name.startswith('@') and not f.is_dir()):
+                    ep_folders.append(item)
+
+            if not ep_folders:
+                continue
+
+            if not had_output:
+                print(f'\n[{show_dir.name}]')
+                had_output = True
+
+            # Determine target season folder
+            m = _SEASON_RE.match(season_dir.name)
+            if m:
+                season_num = int(m.group(1))
+                target_dir = season_dir
+            else:
+                season_num = _infer_season(ep_folders)
+                if not season_num:
+                    print(f'  [!] Staffelnummer nicht erkennbar: {season_dir.name}')
+                    continue
+                target_dir = show_dir / f'Season {season_num:02d}'
+                print(f'  Ordner umbenennen: "{season_dir.name}" → "{target_dir.name}"')
+                if not dry_run:
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                stats['renamed'] += 1
+
+            # Move files from each episode sub-folder
+            for ep_dir in ep_folders:
+                for f in sorted(ep_dir.iterdir()):
+                    if f.is_dir() or f.name.startswith('@'):
+                        continue
+                    if f.suffix.lower() not in MOVE_EXTS:
+                        continue
+                    dest = target_dir / f.name
+                    if dest.exists():
+                        print(f'  [skip] {f.name}')
+                        stats['skipped'] += 1
+                        continue
+                    if dry_run:
+                        print(f'  [dry-run] {f.name} → {target_dir.name}/')
+                    else:
+                        shutil.move(str(f), str(dest))
+                        print(f'  ✓ {f.name} → {target_dir.name}/')
+                    stats['moved'] += 1
+
+                # Delete Sample sub-folder (only previews, not needed)
+                sample = ep_dir / 'Sample'
+                if sample.exists() and sample.is_dir():
+                    if dry_run:
+                        print(f'  [dry-run] Sample/ entfernen in {ep_dir.name}')
+                    else:
+                        shutil.rmtree(str(sample), ignore_errors=True)
+
+                # Remove episode folder — silently fails if @eaDir or Subs remain
+                if not dry_run:
+                    try:
+                        ep_dir.rmdir()
+                    except OSError:
+                        pass
+
+            # Remove old wrongly-named season folder if now empty
+            if not dry_run and target_dir != season_dir:
+                try:
+                    season_dir.rmdir()
+                except OSError:
+                    pass
+
+    print(f'\nFlatten: {stats["moved"]} Dateien verschoben, '
+          f'{stats["renamed"]} Ordner umbenannt, {stats["skipped"]} übersprungen')
+    return stats
+
+
 def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
     if not tvdb:
         print('Fehler: --tvdb-key wird für --scan-existing benötigt.')
@@ -837,6 +962,7 @@ def main():
     parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
     parser.add_argument('--scan-existing',      action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
     parser.add_argument('--normalize-episodes', action='store_true', help='Episode-NFOs für Serien mit kryptischen Dateinamen erstellen (TVDb-ID aus tvshow.nfo)')
+    parser.add_argument('--flatten-downloads',  action='store_true', help='Verschachtelte Episode-Ordnerstrukturen bereinigen (z.B. nach Download)')
     parser.add_argument('--options-xml',    default='/volume1/dvb-library/jellyfin-config/root/default/Serien/options.xml',
                         help='Pfad zu Jellyfin Serien-options.xml (für AK6 Offline-Modus)')
     args = parser.parse_args()
@@ -845,6 +971,13 @@ def main():
     tvdb = TVDb(args.tvdb_key) if args.tvdb_key else None
     if not tmdb and not tvdb:
         print('Hinweis: kein API-Key → nur Fallback-NFO')
+
+    if args.flatten_downloads:
+        if not args.dest_series:
+            print('Fehler: --dest-series muss für --flatten-downloads angegeben werden.')
+            sys.exit(1)
+        flatten_downloads(Path(args.dest_series), args.dry_run)
+        return
 
     if args.normalize_episodes:
         if not args.dest_series:
