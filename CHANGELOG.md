@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [2026-06-24] — Issue #31: CIFS-Mounts aus Docker → Bind-Mounts (nofail)
+
+### Fixed
+- Jellyfin startet jetzt auch wenn PC (192.168.2.2) und/oder Linkstation (192.168.2.124) abgeschaltet sind.
+  Vorher: Docker-managed CIFS-Volumes blockierten den Container-Start bei nicht erreichbaren Hosts.
+  Jetzt: Bind-Mounts auf `/volume1/dvb-library/mounts/{buffalo-archiv,windows-e}` (immer vorhanden, leer wenn CIFS nicht gemountet).
+
+### Added
+- `/volume1/dvb-library/mount-cifs.sh`: Montiert CIFS-Shares mit nofail-Logik (ping-Prüfung, graceful fallback). Startet Jellyfin nach erfolgreichem Mount neu. Log: `/volume1/dvb-library/mount-cifs.log`.
+- `/volume1/dvb-library/.cifs-windows-creds` (chmod 600): Credentials-Datei für Windows-PC-Share.
+- Mount-Verzeichnisse: `/volume1/dvb-library/mounts/{buffalo-archiv,windows-e}`.
+
+### Changed
+- `docker-compose.yml` (beide Pfade: `/volume1/dvb-library/` und Container Manager): CIFS-Volume-Section entfernt, zwei neue Bind-Mounts hinzugefügt.
+- Alte Docker-Volumes `dvb-library_buffalo-archiv`, `dvb-library_windows-e` gelöscht.
+
+### Pending (manueller Schritt)
+- **Ruben**: DSM Task Scheduler → Ausgelöste Aufgabe bei Boot anlegen (User: root, Befehl: `/volume1/dvb-library/mount-cifs.sh`)
+
 ## [2026-06-20] — Metadaten-Bereinigung + normalize-episodes
 
 ### Added
