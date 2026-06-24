@@ -8,11 +8,12 @@ https://github.com/RangRang416/xoro-epg-enricher
   - Docker-managed CIFS-Volumes entfernt, Bind-Mounts auf `/volume1/dvb-library/mounts/` 
   - `mount-cifs.sh` deployed, Credentials-Datei `.cifs-windows-creds` (chmod 600)
   - Jellyfin startet jetzt auch wenn PC/Linkstation aus (leere Dirs, kein Mount-Fehler)
-  - **Ruben muss noch**: DSM Task Scheduler → Boot-Aufgabe für `mount-cifs.sh` als root anlegen
+  - DSM Task Scheduler Boot-Aufgabe `mount-cifs-shares` angelegt und getestet ✓
+- CIFS-Shares erfolgreich über neue Pfade gemountet ✓
+- Library-Scan angestoßen, bei ~81% abgebrochen (Ruben wollte gucken)
 
 ## Nächste Session
-1. **#31 DSM-Task anlegen** (5 Min, siehe unten): Dann CIFS auto-mount bei Boot aktiv
-2. **#32**: Planner für Metadaten-Lücke — 56% Filme / 88% Episoden ohne Erkennung
+1. **#32**: Planner für Metadaten-Lücke — 56% Filme / 88% Episoden ohne Erkennung
    - buffalo-archiv read-only → Schreibzugang Linkstation klären
    - bestehende-filme: 141 Filme ohne Metadaten (prüfen warum)
 
