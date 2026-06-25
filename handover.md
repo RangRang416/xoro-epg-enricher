@@ -4,45 +4,41 @@
 https://github.com/RangRang416/xoro-epg-enricher
 
 ## Abgeschlossen diese Session
-- **#32 WI-2 Inventur-Spike**: Root-Cause bestehende-filme = Scene-Releases ohne RECInfo.txt. ~95% auflösbar. buffalo-archiv/windows-e offline → kein Scan möglich.
-- **#32 WI-3 Implementierung**: `--scan-existing-movies` deployed:
-  - 52 Filme in `/volume1/1/Filme` per TMDb erkannt + NFO geschrieben
-  - 8 Fallback-NFOs (kein TMDb-Match)
-  - Sammlungsordner (Harry Potter, Herr der Ringe, Star.Trek, Star.Wars, Schwarzenegger) rekursiv aufgelöst
-  - Sample-Ordner, filecrypt.cc, Multi-Video-Ordner korrekt übersprungen
-- Commit: `42e29fa` gepusht
+- **#32 WI-2**: Inventur-Spike — Root-Cause = Scene-Releases ohne RECInfo.txt
+- **#32 WI-3**: `--scan-existing-movies` implementiert + deployed (commit `42e29fa`)
+  - bestehende-filme: 52 erkannt, 8 Fallback
+  - windows-e/Archiv/Filme_I: 30 erkannt, 4 Fallback → Jellyfin-Refresh ausgelöst
+  - Jellyfin-Scan lief (heute ~19:10 gestartet)
 
-## Offene Punkte #32
-- **buffalo-archiv / windows-e**: Scan nötig wenn Geräte online. Befehl:
-  ```
-  python3 /volume1/dvb-library/enricher.py --scan-existing-movies \
-    --tmdb-key 944022b3c0d95c1d57601c7a32bc9e7f \
-    /volume1/dvb-library/mounts/buffalo-archiv \
-    /volume1/dvb-library/mounts/windows-e
-  ```
-- **Jellyfin-Scan**: Noch NICHT ausgelöst (blockiert NAS 1+ Std, Ruben muss freigeben)
-- **Nicht verarbeitbar** (10 Fälle): Star.Wars Ep. I/IV/VII/VIII/IX (2 Videos: main+sample), Schwarzenegger/Total Recall (direktes MKV in Collection), Terminator (6 direkte MKV)
+## Noch offen #32
+- **buffalo-archiv (Linkstation 192.168.2.124)**: War offline → Scan steht aus
+  - Scan-Befehl wenn online:
+    ```
+    python3 /volume1/dvb-library/enricher.py --scan-existing-movies \
+      --tmdb-key 944022b3c0d95c1d57601c7a32bc9e7f \
+      --jellyfin-url http://192.168.2.9:8096 \
+      --jellyfin-key 0fa51eb22d174aca876c01c8621dd1dc \
+      /volume1/dvb-library/mounts/buffalo-archiv
+    ```
+- **Nicht verarbeitbar** in bestehende-filme: Star.Wars Ep. I/IV/VII/VIII/IX (2 Videos), Schwarzenegger/Total.Recall (direktes MKV in Collection), Terminator (6 direkte MKV)
+- **Weitere windows-e Pfade prüfen**: `/windows-e/Downloads` (Jellyfin watched it)
+
+## Absturz-Bericht 2026-06-24 22:09
+- Android TV App 0.19.9: `NullPointerException` in `FullDetailsFragment.java:246`
+- `getType()` auf null-BaseItemDto nach fehlgeschlagenem Playback (S01E01, 0ms)
+- App-Bug, nicht server-seitig behebbar
 
 ## Nächste Session
-1. **Jellyfin-Scan** freigeben → prüfen ob Metadaten-Quote verbessert
-2. **buffalo-archiv / windows-e** scannen wenn Geräte an
-3. **Issue #29**: Serien ohne Deutsche Beschreibung (TVDb-Lücken)
+1. **buffalo-archiv** scannen wenn Linkstation an
+2. **Metadaten-Quote prüfen** nach Jellyfin-Scan (war 56% Filme / 88% Episoden)
+3. **Issue #29**: Serien ohne Deutsche Beschreibung
 
-## DSM Task Scheduler
-- Enricher läuft täglich 09:00 (PVR/USB + normalize-episodes + flatten-downloads)
-- `--scan-existing-movies` ist ein manueller Einmal-Lauf (nicht im DSM-Task)
-
-## Docker / NAS
+## DSM / Docker / NAS
 - docker-compose.yml: `/volume1/dvb-library/docker-compose.yml`
-- CIFS Mount-Punkte: `/volume1/dvb-library/mounts/{buffalo-archiv,windows-e}`
-- Mount-Script: `/volume1/dvb-library/mount-cifs.sh` (als root ausführen)
+- CIFS Mounts: `/volume1/dvb-library/mounts/{buffalo-archiv,windows-e}`
+- mount-cifs.sh: als root via DSM Task Scheduler "mount-cifs-shares"
 
 ## Jellyfin
 - URL: http://192.168.2.9:8096, Key: 0fa51eb22d174aca876c01c8621dd1dc
-- UserId: 1edb78b2e1a648d5b68f49a686cb3115
-- Library-Scan: `POST /ScheduledTasks/Running/7738148ffcd07979c7ceb148e06b3aed`
+- Library-Scan Task-ID: 7738148ffcd07979c7ceb148e06b3aed
 - Serien-Library ID: 43cfe12fe7d9d8d21251e0964e0232e2
-
-## Medien-Stand (vor Jellyfin-Scan)
-- bestehende-filme: 218 NFOs vorhanden (von ~228 Video-Ordnern), 10 nicht lösbar
-- buffalo-archiv / windows-e: unbekannt (offline gewesen)
