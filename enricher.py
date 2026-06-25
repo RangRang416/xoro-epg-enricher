@@ -277,6 +277,24 @@ _SEASON_RE = re.compile(r'^(?:Season|Staffel|S)\s*0*(\d+)$', re.I)
 _SKIP_DIRS = {'sample', 'subs', '@eadir'}
 
 
+_ROMAN_TO_INT = {
+    'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6,
+    'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10, 'XI': 11, 'XII': 12,
+}
+_ROMAN_RE = re.compile(r'\b(XII|XI|IX|VIII|VII|VI|IV|III|II|I|X|V)\b', re.IGNORECASE)
+
+
+def _parse_season_num(dirname: str) -> int | None:
+    """Extract season number from a directory name. Supports Arabic and Roman numerals."""
+    m = re.search(r'(\d+)', dirname)
+    if m:
+        return int(m.group(1))
+    m = _ROMAN_RE.search(dirname)
+    if m:
+        return _ROMAN_TO_INT.get(m.group(1).upper())
+    return None
+
+
 def parse_se_from_filename(stem: str):
     """Return (season, episode) from stem like 'Breaking Bad S01E01' or '1xE01'. (0, 0) if not found."""
     m = _SE_RE.search(stem)
@@ -1100,10 +1118,9 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
         for season_dir in sorted(show_dir.iterdir()):
             if not season_dir.is_dir() or season_dir.name.startswith('@'):
                 continue
-            folder_season_m = re.search(r'(\d+)', season_dir.name)
-            if not folder_season_m:
+            folder_season = _parse_season_num(season_dir.name)
+            if folder_season is None:
                 continue
-            folder_season = int(folder_season_m.group(1))
 
             for video in sorted(season_dir.iterdir()):
                 if video.suffix.lower() not in VIDEO_EXTS:
