@@ -117,8 +117,11 @@ class TMDb:
         params['language'] = language or self.lang
         return http_get_json(f'{self.BASE}{path}', params)
 
-    def search_movie(self, title: str) -> list:
-        return self._get('/search/movie', query=title).get('results', [])
+    def search_movie(self, title: str, year: str = None) -> list:
+        params = {'query': title}
+        if year:
+            params['primary_release_year'] = year
+        return self._get('/search/movie', **params).get('results', [])
 
     def search_tv(self, title: str) -> list:
         return self._get('/search/tv', query=title).get('results', [])
@@ -161,6 +164,27 @@ class TMDb:
 
         return None, None
 
+    def best_match_movie(self, title: str, year: str = None):
+        """TMDb movie search with optional year filter; retries without year on no results."""
+        title_lower = title.lower()
+
+        def score(r):
+            s = 0
+            name = (r.get('title') or r.get('name') or '').lower()
+            if name == title_lower:                          s += 50
+            elif title_lower in name or name in title_lower: s += 20
+            if r.get('poster_path'):                         s += 10
+            if r.get('overview'):                            s += 10
+            s += min(r.get('vote_count', 0) / 100, 20)
+            return s
+
+        results = self.search_movie(title, year)
+        if not results and year:
+            results = self.search_movie(title)
+        if not results:
+            return None
+        return self.movie_details(max(results, key=score)['id'])
+
     def poster_url(self, details: dict):
         path = details.get('poster_path')
         return f'{self.IMG}{path}' if path else None
@@ -187,6 +211,65 @@ def parse_episode_info(title: str):
         return series, int(m.group(1)), int(m.group(2))
     part = int(m.group(3) or m.group(4) or m.group(5) or 1)
     return series, 1, part
+
+
+# ── Folder-name parser für Scene-Releases ────────────────────────────────────
+
+_RELEASE_TAG_RE = re.compile(
+    r'\b(?:german|deutsch|english|french|dl|bluray|blu-?ray|hdtv|web-?dl|webrip|web|'
+    r'bdrip|dvdrip|hdrip|hdcam|remastered|extended|directors?\.?cut|unrated|limited|'
+    r'proper|rerip|repack|internal|complete|dubbed|multi|collectors?\.?edition|'
+    r'2160p|1080[pi]|720[pi]|480p|4k|uhd|x264|x265|h\.?264|h\.?265|hevc|xvid|'
+    r'divx|avc|flac|aac|ac3d?|dts(?:-hd)?|eac3d?|mp2|mp3)\b',
+    re.I
+)
+
+
+def parse_folder_title(name: str):
+    """Extract (title, year) from a scene-release or Jellyfin-format folder name.
+
+    Returns ('', '') for filecrypt.cc description pages and unresolvable names.
+    """
+    if re.search(r'filecrypt\.cc', name, re.I):
+        return '', ''
+
+    # Jellyfin-Standardformat: "Title (Year)" or "Title (Year) {tmdb-123}"
+    m = re.match(r'^(.+?)\s*\((\d{4})\)', name)
+    if m:
+        return m.group(1).strip(), m.group(2)
+
+    # Dots als Trennzeichen (Release-Style mit wenig Leerzeichen)
+    cleaned = name
+    if cleaned.count('.') >= 2 and cleaned.count(' ') < 3:
+        cleaned = cleaned.replace('.', ' ')
+
+    # Jahr finden
+    m = re.search(r'\b((?:19|20)\d{2})\b', cleaned)
+    if m:
+        title = cleaned[:m.start()].strip(' .-_')
+        # Release-Tags aus dem Titel entfernen (z.B. "Title German DL 2004" → "Title")
+        title = _RELEASE_TAG_RE.split(title)[0].strip(' .-_')
+        return title, m.group(1)
+
+    # Kein Jahr → Release-Tags abschneiden
+    title = _RELEASE_TAG_RE.split(cleaned)[0].strip(' .-_')
+    return (title, '') if title else ('', '')
+
+
+def count_video_files(folder: Path) -> int:
+    """Anzahl Video-Dateien direkt (nicht rekursiv) im Ordner."""
+    try:
+        return sum(
+            1 for f in folder.iterdir()
+            if f.is_file() and not f.name.startswith('@') and f.suffix.lower() in VIDEO_EXTS
+        )
+    except PermissionError:
+        return 0
+
+
+def has_video_file(folder: Path) -> bool:
+    """True wenn der Ordner direkt (nicht rekursiv) mindestens eine Video-Datei enthält."""
+    return count_video_files(folder) > 0
 
 
 _SE_RE = re.compile(r'[Ss](\d+)[Ee](\d+)|(\d+)[xX][Ee](\d+)')
@@ -861,6 +944,126 @@ def flatten_downloads(series_dir: Path, dry_run: bool) -> dict:
     return stats
 
 
+def _process_existing_movie(folder: Path, tmdb, dry_run: bool, force: bool, stats: dict):
+    """Verarbeite einen einzelnen Film-Ordner ohne RECInfo.txt."""
+    nfo    = folder / 'movie.nfo'
+    poster = folder / 'poster.jpg'
+
+    if nfo.exists() and not force:
+        stats['skip'] += 1
+        return
+
+    title, year = parse_folder_title(folder.name)
+    if not title:
+        print(f'  [{folder.name}] → übersprungen (kein Titel parsebar)')
+        stats['skip'] += 1
+        return
+
+    print(f'\n[{folder.name}]')
+    print(f'  Titel: {title}' + (f' ({year})' if year else ''))
+
+    if dry_run:
+        stats['skip'] += 1
+        return
+
+    nfo_content = None
+    poster_url  = None
+
+    try:
+        details = tmdb.best_match_movie(title, year or None)
+        if details:
+            nfo_content = build_movie_nfo(details)
+            poster_url  = tmdb.poster_url(details)
+            matched = details.get('title') or details.get('name', '?')
+            print(f'  TMDb:  {matched}')
+        else:
+            print('  TMDb:  kein Ergebnis, Fallback-NFO')
+    except Exception as e:
+        print(f'  TMDb-Fehler: {e}')
+
+    if nfo_content is None:
+        nfo_content = build_fallback_nfo(title)
+        stats['fallback'] += 1
+    else:
+        stats['done'] += 1
+
+    nfo.write_text(nfo_content, encoding='utf-8')
+
+    if poster_url and not poster.exists():
+        try:
+            poster.write_bytes(http_get_bytes(poster_url))
+            print('  Poster: gespeichert')
+        except Exception as e:
+            print(f'  Poster-Fehler: {e}')
+
+    time.sleep(0.3)
+
+
+def scan_existing_movies(dirs: list, tmdb, dry_run: bool, force: bool) -> dict:
+    """Scanne Verzeichnisse mit bestehenden Filmen (ohne RECInfo.txt).
+
+    Einzelfilm-Ordner werden direkt verarbeitet. Sammlungs-Ordner (kein Video
+    direkt, aber Video in Unterordnern) werden eine Ebene rekursiv aufgelöst.
+    """
+    if not tmdb:
+        print('Fehler: --tmdb-key wird für --scan-existing-movies benötigt.')
+        return {'done': 0, 'skip': 0, 'error': 0, 'fallback': 0}
+
+    stats = {'done': 0, 'skip': 0, 'error': 0, 'fallback': 0}
+
+    for base in dirs:
+        if not base.is_dir():
+            print(f'Warnung: {base} nicht gefunden', file=sys.stderr)
+            continue
+
+        print(f'\n=== {base} ===')
+
+        for folder in sorted(base.iterdir()):
+            if not folder.is_dir():
+                continue
+            if folder.name.startswith('@') or folder.name.startswith('.'):
+                continue
+            if folder.name.lower() in _SKIP_DIRS:
+                continue
+
+            n_videos = count_video_files(folder)
+            # Unterordner die selbst mindestens 1 Video enthalten → Sammlungsordner
+            try:
+                n_subdirs_with_video = sum(
+                    1 for sub in folder.iterdir()
+                    if sub.is_dir() and not sub.name.startswith(('@', '.'))
+                    and count_video_files(sub) > 0
+                )
+            except PermissionError:
+                n_subdirs_with_video = 0
+
+            if n_videos == 1 and n_subdirs_with_video == 0:
+                # Echter Einzelfilm-Ordner (kein Sammlungsordner)
+                try:
+                    _process_existing_movie(folder, tmdb, dry_run, force, stats)
+                except Exception as e:
+                    print(f'  Fehler: {e}')
+                    stats['error'] += 1
+            elif n_subdirs_with_video > 0:
+                # Sammlungs-Ordner: eine Ebene rekursiv (direkte Videos im Sammlungsordner werden übersprungen)
+                for sub in sorted(folder.iterdir()):
+                    if not sub.is_dir() or sub.name.startswith('@') or sub.name.startswith('.'):
+                        continue
+                    if sub.name.lower() in _SKIP_DIRS:
+                        continue
+                    if count_video_files(sub) == 1:
+                        try:
+                            _process_existing_movie(sub, tmdb, dry_run, force, stats)
+                        except Exception as e:
+                            print(f'  Fehler in {sub.name}: {e}')
+                            stats['error'] += 1
+            # n_videos > 1 ohne Unterordner: überspringen
+
+    print(f'\nScan-Existing-Movies: {stats["done"]} erkannt, {stats["fallback"]} Fallback, '
+          f'{stats["skip"]} übersprungen, {stats["error"]} Fehler')
+    return stats
+
+
 def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
     if not tvdb:
         print('Fehler: --tvdb-key wird für --scan-existing benötigt.')
@@ -960,7 +1163,8 @@ def main():
     parser.add_argument('--dest-movies',    default=None, help='Zielordner für Filme nach Enrichment')
     parser.add_argument('--dest-series',    default=None, help='Zielordner für Serien nach Enrichment')
     parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
-    parser.add_argument('--scan-existing',      action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
+    parser.add_argument('--scan-existing',       action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
+    parser.add_argument('--scan-existing-movies', action='store_true', help='Bestehende Film-Ordner ohne RECInfo.txt scannen, NFOs per TMDb ergänzen')
     parser.add_argument('--normalize-episodes', action='store_true', help='Episode-NFOs für Serien mit kryptischen Dateinamen erstellen (TVDb-ID aus tvshow.nfo)')
     parser.add_argument('--flatten-downloads',  action='store_true', help='Verschachtelte Episode-Ordnerstrukturen bereinigen (z.B. nach Download)')
     parser.add_argument('--options-xml',    default='/volume1/dvb-library/jellyfin-config/root/default/Serien/options.xml',
@@ -971,6 +1175,18 @@ def main():
     tvdb = TVDb(args.tvdb_key) if args.tvdb_key else None
     if not tmdb and not tvdb:
         print('Hinweis: kein API-Key → nur Fallback-NFO')
+
+    if args.scan_existing_movies:
+        if not args.dirs:
+            print('Fehler: Verzeichnisse als Argumente angeben.')
+            sys.exit(1)
+        movie_dirs = [Path(d) for d in args.dirs]
+        em_stats = scan_existing_movies(movie_dirs, tmdb, args.dry_run, args.force)
+        if not args.dry_run and (em_stats['done'] > 0 or em_stats['fallback'] > 0):
+            if args.jellyfin_url and args.jellyfin_key:
+                print('Jellyfin-Bibliothek wird aktualisiert...')
+                print('OK' if jellyfin_refresh(args.jellyfin_url, args.jellyfin_key) else 'Fehlgeschlagen')
+        return
 
     if args.flatten_downloads:
         if not args.dest_series:

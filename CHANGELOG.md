@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [2026-06-25] — Issue #32 WI-3: Metadaten für bestehende Filme (scan-existing-movies)
+
+### Added
+- `enricher.py --scan-existing-movies <dirs>`: Neuer Modus für Film-Ordner ohne RECInfo.txt (Scene-Releases, Downloads). Parst Ordnernamen, sucht per TMDb, schreibt `movie.nfo`.
+- `parse_folder_title()`: Extrahiert Titel + Jahr aus Release-Style-Namen (`Title.Year.DL.1080p.x264-GROUP`) und Jellyfin-Format (`Title (Year)`). Filtert filecrypt.cc-Seiten.
+- `TMDb.best_match_movie()`: TMDb-Suche mit optionalem Jahres-Filter (`primary_release_year`), automatischer Fallback ohne Jahr.
+- Sammlungsordner (Harry Potter, Star.Wars, etc.) werden automatisch rekursiv aufgelöst (eine Ebene).
+
+### Changed
+- `TMDb.search_movie()` akzeptiert optionalen `year`-Parameter.
+
+### Fixed
+- 52 Filme in `/volume1/1/Filme` (bestehende-filme) mit TMDb-Metadaten versorgt; 8 Fallback-NFOs wo TMDb kein Ergebnis lieferte.
+- Korrekte Behandlung von gemischten Sammlungsordnern (Sub-Folder-Filme + direktes Video).
+- `_SKIP_DIRS` (`Sample`, `Subs`, `@eaDir`) werden übersprungen.
+
 ## [2026-06-24] — Issue #31: CIFS-Mounts aus Docker → Bind-Mounts (nofail)
 
 ### Fixed
