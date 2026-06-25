@@ -284,7 +284,7 @@ _ROMAN_TO_INT = {
 _ROMAN_RE = re.compile(r'\b(XII|XI|IX|VIII|VII|VI|IV|III|II|I|X|V)\b', re.IGNORECASE)
 
 
-def _parse_season_num(dirname: str) -> int | None:
+def _parse_season_num(dirname: str):
     """Extract season number from a directory name. Supports Arabic and Roman numerals."""
     m = re.search(r'(\d+)', dirname)
     if m:
