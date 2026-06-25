@@ -4,34 +4,36 @@
 https://github.com/RangRang416/xoro-epg-enricher
 
 ## Abgeschlossen diese Session
-- **#32 WI-2**: Inventur-Spike — Root-Cause = Scene-Releases ohne RECInfo.txt
-- **#32 WI-3**: `--scan-existing-movies` implementiert + deployed (commit `42e29fa`)
-  - bestehende-filme: 52 erkannt, 8 Fallback
-  - windows-e/Archiv/Filme_I: 30 erkannt, 4 Fallback → Jellyfin-Refresh ausgelöst
-  - Jellyfin-Scan lief (heute ~19:10 gestartet)
+- **#33**: Staffelordner mit römischen Ziffern (#33) — `_parse_season_num()` erkennt I–XII (commit `d112728`)
+  - Bugfix Python 3.8-Kompatibilität (int|None → ohne Typhinweis)
+- **Scans durchgeführt:**
+  - `buffalo-archiv/Filme II/Spielfilme`: 174 erkannt, 38 Fallback
+  - `buffalo-archiv/Filme II/Fernsehfilme + Archiv_II`: 54 erkannt, 6 Fallback
+  - `windows-e` (gestern): 42 erkannt, 10 Fallback
 
-## Noch offen #32
-- **buffalo-archiv (Linkstation 192.168.2.124)**: War offline → Scan steht aus
-  - Scan-Befehl wenn online:
-    ```
-    python3 /volume1/dvb-library/enricher.py --scan-existing-movies \
-      --tmdb-key 944022b3c0d95c1d57601c7a32bc9e7f \
-      --jellyfin-url http://192.168.2.9:8096 \
-      --jellyfin-key 0fa51eb22d174aca876c01c8621dd1dc \
-      /volume1/dvb-library/mounts/buffalo-archiv
-    ```
-- **Nicht verarbeitbar** in bestehende-filme: Star.Wars Ep. I/IV/VII/VIII/IX (2 Videos), Schwarzenegger/Total.Recall (direktes MKV in Collection), Terminator (6 direkte MKV)
-- **Weitere windows-e Pfade prüfen**: `/windows-e/Downloads` (Jellyfin watched it)
+## Jellyfin-Stand (2026-06-25 Abend)
+- Filme gesamt: 1321 — ohne TMDb: 590 (45%) — ohne Beschreibung: 439
+- Episoden gesamt: 2863 — ohne TVDb: 608 (21%) — ohne Beschreibung: 2476 (87%)
 
-## Absturz-Bericht 2026-06-24 22:09
-- Android TV App 0.19.9: `NullPointerException` in `FullDetailsFragment.java:246`
-- `getType()` auf null-BaseItemDto nach fehlgeschlagenem Playback (S01E01, 0ms)
-- App-Bug, nicht server-seitig behebbar
+## Offene Probleme für morgen
 
-## Nächste Session
-1. **buffalo-archiv** scannen wenn Linkstation an
-2. **Metadaten-Quote prüfen** nach Jellyfin-Scan (war 56% Filme / 88% Episoden)
-3. **Issue #29**: Serien ohne Deutsche Beschreibung
+### Nächste Scans
+- `buffalo-archiv/Filme II/Serien` Serien-Scan: 0 NFOs — TVDb findet Ordner nicht
+  - Ursache: Unterstriche + Staffelinfo im Ordnernamen (`Goliath S04`, `Kir_Royale`)
+  - Fix nötig: Ordnernamen vor TVDb-Suche bereinigen (Unterstriche → Leerzeichen, Staffelangaben entfernen)
+- `windows-e/Archiv/Fernsehen/Spielfilm/`: Flat .flv-Dateien, kein Unterordner pro Film → Enricher kann nicht verarbeiten
+
+### Issue #29: Serien ohne Deutsche Beschreibung (87% ohne Beschreibung)
+- TVDb-Erkennung okay (21% fehlen), aber Beschreibungen kommen nicht an
+
+## Morgen-Auftrag (vereinbart)
+Ruben hat Orchestrator-Auftrag gegeben: **Erfassung + Beschreibung in Jellyfin selbstständig durchziehen**, inklusive vollem Workflow (Planner, Issues, Doku).
+
+Checkpoints die Freigabe brauchen:
+1. Nach Planner-Output
+2. Jellyfin Library-Scan (blockiert NAS 1h+)
+3. Datei-Umbenennungen (irreversibel)
+4. Push nach Test
 
 ## DSM / Docker / NAS
 - docker-compose.yml: `/volume1/dvb-library/docker-compose.yml`
