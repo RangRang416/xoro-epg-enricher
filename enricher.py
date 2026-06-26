@@ -295,6 +295,18 @@ def _parse_season_num(dirname: str):
     return None
 
 
+def _clean_show_name(name: str) -> str:
+    """Bereinigt Ordnernamen für TVDb-Suche.
+
+    Entfernt: Unterstriche, Staffelangaben (S04, Season 1, Staffel 2), Jahreszahlen am Ende.
+    """
+    cleaned = name.replace('_', ' ')
+    cleaned = re.sub(r'\s+S\d+\s*$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+(Season|Staffel)\s+\d+\s*$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s+(19|20)\d{2}\s*$', '', cleaned)
+    return cleaned.strip()
+
+
 def parse_se_from_filename(stem: str):
     """Return (season, episode) from stem like 'Breaking Bad S01E01' or '1xE01'. (0, 0) if not found."""
     m = _SE_RE.search(stem)
@@ -1094,13 +1106,16 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
         if not show_dir.is_dir() or show_dir.name.startswith('@') or show_dir.name.startswith('.'):
             continue
         show_name = show_dir.name
+        search_name = _clean_show_name(show_name)
 
         # tvshow.nfo anlegen falls fehlend
         tvshow_nfo = show_dir / 'tvshow.nfo'
         if not tvshow_nfo.exists():
             print(f'\n[{show_name}] tvshow.nfo fehlt')
+            if search_name != show_name:
+                print(f'  Suche als: "{search_name}"')
             try:
-                series = tvdb.best_series(show_name)
+                series = tvdb.best_series(search_name)
                 if series:
                     series_cache[show_name] = series
                     if dry_run:
@@ -1110,7 +1125,7 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
                         print(f'  tvshow.nfo → {series.get("name")}')
                     time.sleep(0.3)
                 else:
-                    print(f'  TVDb: kein Ergebnis für "{show_name}"')
+                    print(f'  TVDb: kein Ergebnis für "{search_name}"')
             except Exception as e:
                 print(f'  Fehler: {e}')
 
@@ -1141,10 +1156,10 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
 
                 try:
                     if show_name not in series_cache:
-                        series_cache[show_name] = tvdb.best_series(show_name)
+                        series_cache[show_name] = tvdb.best_series(search_name)
                     series = series_cache.get(show_name)
                     if not series:
-                        print(f'  TVDb: kein Ergebnis für "{show_name}"')
+                        print(f'  TVDb: kein Ergebnis für "{search_name}"')
                         stats['error'] += 1
                         continue
 
