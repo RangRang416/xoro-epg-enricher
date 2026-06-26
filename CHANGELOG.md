@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [2026-06-26] — Issue #34 + #29: Ordnernamen-Fix + leere NFO-Plots befüllen
+
+### Fixed
+- `_clean_show_name()`: Neue Funktion bereinigt Ordnernamen vor TVDb-Suche.
+  Entfernt Unterstriche, Punkte-als-Trennzeichen (wenn kein Leerzeichen im Namen),
+  Staffelangaben (`S04`, `Season N`, `Staffel N`) und Jahreszahlen am Ende.
+  Vorher: `Goliath S04`, `Kir_Royale`, `Der.Milliardaersbunker` → 0 TVDb-Treffer.
+  Nachher: `Goliath`, `Kir Royale`, `Der Milliardaersbunker` → Treffer gefunden.
+- `_nfo_plot()`: Liest `<plot>` aus NFO, ignoriert führenden Release-Notes-Text.
+- `scan_existing_series`: Überspringt NFO jetzt nur noch wenn `<plot>` vorhanden.
+  NFOs aus Fremdquellen (vorhanden aber ohne Beschreibung) werden neu befüllt.
+  Betrifft `tvshow.nfo` und Episoden-NFOs gleichermaßen.
+
 ## [2026-06-25] — Issue #32 WI-3: Metadaten für bestehende Filme (scan-existing-movies)
 
 ### Added
