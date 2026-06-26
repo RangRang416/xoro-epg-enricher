@@ -302,8 +302,9 @@ def _clean_show_name(name: str) -> str:
     Jahreszahlen am Ende.
     """
     cleaned = name.replace('_', ' ')
-    # Punkte als Trennzeichen ersetzen (Scene-Release-Stil wie "Archie.Die.Cary.Grant.Story")
-    if cleaned.count('.') >= 2 and cleaned.count(' ') < 3:
+    # Punkte als Trennzeichen ersetzen wenn kein Leerzeichen vorhanden
+    # (Scene-Release-Stil: "Archie.Die.Cary.Grant.Story", "Der.Milliardaersbunker")
+    if '.' in cleaned and ' ' not in cleaned:
         cleaned = cleaned.replace('.', ' ')
     cleaned = re.sub(r'\s+S\d+\s*$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+(Season|Staffel)\s+\d+\s*$', '', cleaned, flags=re.IGNORECASE)
