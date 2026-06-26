@@ -298,13 +298,31 @@ def _parse_season_num(dirname: str):
 def _clean_show_name(name: str) -> str:
     """Bereinigt Ordnernamen für TVDb-Suche.
 
-    Entfernt: Unterstriche, Staffelangaben (S04, Season 1, Staffel 2), Jahreszahlen am Ende.
+    Entfernt: Unterstriche, Punkte-als-Trennzeichen (Scene-Releases), Staffelangaben,
+    Jahreszahlen am Ende.
     """
     cleaned = name.replace('_', ' ')
+    # Punkte als Trennzeichen ersetzen (Scene-Release-Stil wie "Archie.Die.Cary.Grant.Story")
+    if cleaned.count('.') >= 2 and cleaned.count(' ') < 3:
+        cleaned = cleaned.replace('.', ' ')
     cleaned = re.sub(r'\s+S\d+\s*$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+(Season|Staffel)\s+\d+\s*$', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\s+(19|20)\d{2}\s*$', '', cleaned)
     return cleaned.strip()
+
+
+def _nfo_plot(nfo_path: Path) -> str:
+    """Liest <plot> aus einer NFO. Ignoriert führenden Non-XML-Text (Release-Notes etc.)."""
+    try:
+        content = nfo_path.read_text(encoding='utf-8', errors='replace')
+        for marker in ('<?xml', '<episodedetails', '<tvshow', '<movie'):
+            idx = content.find(marker)
+            if idx >= 0:
+                root = _ET.fromstring(content[idx:])
+                return (root.findtext('plot') or '').strip()
+    except Exception:
+        pass
+    return ''
 
 
 def parse_se_from_filename(stem: str):
@@ -1108,9 +1126,9 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
         show_name = show_dir.name
         search_name = _clean_show_name(show_name)
 
-        # tvshow.nfo anlegen falls fehlend
+        # tvshow.nfo anlegen falls fehlend oder plot leer
         tvshow_nfo = show_dir / 'tvshow.nfo'
-        if not tvshow_nfo.exists():
+        if not tvshow_nfo.exists() or not _nfo_plot(tvshow_nfo):
             print(f'\n[{show_name}] tvshow.nfo fehlt')
             if search_name != show_name:
                 print(f'  Suche als: "{search_name}"')
@@ -1141,7 +1159,7 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
                 if video.suffix.lower() not in VIDEO_EXTS:
                     continue
                 nfo_path = video.with_suffix('.nfo')
-                if nfo_path.exists():
+                if nfo_path.exists() and _nfo_plot(nfo_path):
                     stats['skip'] += 1
                     continue
 
