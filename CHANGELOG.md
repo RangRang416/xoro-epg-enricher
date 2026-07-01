@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [2026-07-01] — Wake-on-LAN für PC + Linkstation vor Abendnutzung
+
+### Added
+- `/volume1/dvb-library/wol-wake.sh` (NAS-only, nicht im Repo): Sendet WOL-Magic-Packets an Windows-PC (`2c:f0:5d:a2:c7:c0`) und Linkstation/TeraStation TS-XL/R5 (`4c:e6:76:92:53:4b`) per Python3-UDP-Broadcast (kein root nötig).
+- DSM-Task 7 "WOL Wake PC+Linkstation": täglich 19:50 Uhr, einmalig (kein Repeat). 10 Min. Puffer vor typischer Sehzeit ab 20:00 Uhr.
+- Bestehender Mount-Task (Task 6, alle 5 Min.) mountet danach automatisch, sobald die Geräte hochgefahren sind — keine Änderung an `mount-cifs.sh` nötig.
+
+### Bekannte Voraussetzungen (noch zu prüfen von Ruben)
+- Windows-PC: WOL muss in BIOS/UEFI + Gerätemanager-Netzwerkadapter aktiviert sein, Schnellstart deaktiviert.
+- Linkstation/TeraStation: unklar ob altes Firmware (2015) im ausgeschalteten Zustand noch Standby-Strom für WOL hat — kein Admin-Zugriff zum Verifizieren.
+- Kein echtes On-Demand-Wecken bei Jellyfin-Play-Klick (siehe Diskussion) — nur planmäßig um 19:50 Uhr.
+
 ## [2026-06-26] — Issue #34 + #29: Ordnernamen-Fix + leere NFO-Plots befüllen
 
 ### Fixed
