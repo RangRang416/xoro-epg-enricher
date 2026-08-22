@@ -1,15 +1,13 @@
-# Handover — xoro-epg-enricher (2026-08-22)
+# Handover — xoro-epg-enricher (2026-08-22, Nachtrag)
 
-**#35 verifiziert:** Health-Check-Fix vom 07.08. funktioniert zuverlässig — Log-Auswertung (`mount-cifs.log`) zeigt 8 automatische Neustarts an den Boot-Tagen 08.-17.08., je innerhalb 2 Min. nach dem 08:00-Boot. Ruben merkt den morgendlichen Aussetzer seither vermutlich gar nicht mehr. Ein unerklärter Zusatzstart am 21.08. 20:40 Uhr (nicht Boot-bedingt) — nicht weiter untersucht, einmalig, selbstheilend abgefangen. Root Cause (Boot-Race) bleibt bestehen, Symptom ist gelöst. Kommentar auf #35 gepostet, Vorschlag zum Schließen als "won't-fix-root-cause" — **wartet auf Rubens Freigabe**.
+**#33/#34/#35 geschlossen** (Rubens Freigabe).
 
-**#33/#34:** Dokumentations-Lücke gefunden und geschlossen — Fixes waren seit 26.06. committed (`e1bcf98`, `d112728`, `d87187f`), aber nie auf den Issues kommentiert. Nachgetragen. **Warten seit 7 Wochen auf Freigabe zum Schließen.**
+**Neuer Fund + Fix (#36, offen, wartet auf Verifikation über mehrere Tage):** Docker-Bind-Mounts übernehmen einen CIFS-Mount NICHT, wenn er erst nach dem Jellyfin-Container-Start entsteht (rprivate-Propagation, Inode-Vergleich bestätigt zwei unterschiedliche Sichten). Akuter Auslöser: windows-e (E:, Windows-PC) wurde heute erst um 15:30 gemountet, Jellyfin lief aber schon seit 07:53 — Container sah leeres Verzeichnis. Sofort-Fix: `docker restart jellyfin` manuell. Dauerhaft-Fix deployed: `mount-cifs.sh` (NAS-only) restartet Jellyfin jetzt automatisch, wenn ein Mount frisch dazukommt UND Jellyfin bereits lief (vorheriger Script-Kommentar "kein Restart nötig" war falsch, korrigiert). Backup der Vorversion: `mount-cifs.sh.bak-2026-08-22`.
 
-**#22:** unverändert, Upstream-Bug bei Jellyfin-Android-TV, kein eigener Fix möglich, weiter offen.
+**Jellyfin-Bibliotheken ergänzt (mit Rubens Freigabe):** 5 bisher fehlende E:-Ordner (Film, Fernsehfilm, Fernsehen, Film & Serie in Einsfestival → Filme; Doku-Reihe → Dokumentationen) hinzugefügt, roh (kryptische DVB-Rohdateinamen, keine Metadaten-Bereinigung — passt zu #32). Z:/Filme existiert nicht als Ordner (0-Byte-Datei von 2015). Voller Library-Scan angestoßen (Rubens Freigabe), lief bei Sessionende bei ~52%.
 
-**#29:** PM-Plan (TVDb-v4-API-Spike) steht seit 25.06. unbearbeitet im letzten Kommentar — nicht angefasst diese Session.
+**Neu (#37, Backlog):** F:-Laufwerk vom Windows-PC ist noch nicht freigegeben/gemountet/in Jellyfin — zurückgestellt, nicht dringend.
 
-**#32:** als eigene Projektphase ("Bestandsarchiv-Anreicherung") eingeordnet (PM-Kommentar 05.07.), #33/#34 hingen daran und sind jetzt erledigt — #32 selbst noch offen, größerer Scope, nicht ohne Rubens Entscheidung angefasst.
+**Unverändert offen:** #22 (Upstream-Jellyfin-Bug), #29 (TVDb-Spike-Plan unbearbeitet seit 25.06.), #32 (Metadaten-Lücke, eigene Projektphase).
 
-**Nebenbefund:** SSH-Alias `synology` fehlte in dieser Session in `~/.ssh/config` (nur `hetzner` vorhanden) — nachgetragen, funktioniert wieder.
-
-Nächster sinnvoller Schritt: Ruben entscheiden lassen, ob #33/#34/#35 geschlossen werden, und ob #29 (TVDb-Spike) oder #32 (neue Projektphase) als nächstes angegangen werden soll.
+Nächster sinnvoller Schritt: #36 nach ein paar Tagen Logs verifizieren (analog zum #35-Vorgehen); Scan-Ergebnis mit Ruben prüfen (kamen die 5 neuen Ordner sauber/erkennbar an, oder viel "Nicht erkannt"?); dann Richtung #29 oder #32 entscheiden.
