@@ -1,9 +1,15 @@
-# Handover — xoro-epg-enricher (2026-08-07)
+# Handover — xoro-epg-enricher (2026-08-22)
 
-**#35 (Mount-Diagnose vom 20.07 war falsch/unvollständig, jetzt korrigiert):** Ursache des tatsächlichen Ausfalls war NICHT der Mount, sondern der Jellyfin-Docker-Container selbst — startet nach dem täglichen NAS-Boot (08:00 Uhr, Power-Schedule) mit einem Race gegen den CIFS-Remount und bleibt dann im Status `Created` hängen (Docker-Restart-Policy greift hier nicht). Manuell gefixt (`docker start jellyfin`) + präventiv: `mount-cifs.sh` (NAS-only, Cron alle 5 Min.) prüft jetzt zusätzlich den Jellyfin-Status und startet ihn bei Bedarf neu. **Noch nicht verifiziert** — abwarten, ob der morgendliche Aussetzer ausbleibt. Details: `project_xoro_issue22_35_diagnosis_2026-07-20.md` (Memory).
+**#35 verifiziert:** Health-Check-Fix vom 07.08. funktioniert zuverlässig — Log-Auswertung (`mount-cifs.log`) zeigt 8 automatische Neustarts an den Boot-Tagen 08.-17.08., je innerhalb 2 Min. nach dem 08:00-Boot. Ruben merkt den morgendlichen Aussetzer seither vermutlich gar nicht mehr. Ein unerklärter Zusatzstart am 21.08. 20:40 Uhr (nicht Boot-bedingt) — nicht weiter untersucht, einmalig, selbstheilend abgefangen. Root Cause (Boot-Race) bleibt bestehen, Symptom ist gelöst. Kommentar auf #35 gepostet, Vorschlag zum Schließen als "won't-fix-root-cause" — **wartet auf Rubens Freigabe**.
 
-**#22:** unverändert seit 20.07, weiter offen, kein neuer Stand diese Session.
+**#33/#34:** Dokumentations-Lücke gefunden und geschlossen — Fixes waren seit 26.06. committed (`e1bcf98`, `d112728`, `d87187f`), aber nie auf den Issues kommentiert. Nachgetragen. **Warten seit 7 Wochen auf Freigabe zum Schließen.**
 
-Offen, unverändert seit 01.07.: zweiter Serien-Scan auf `buffalo-archiv/Filme II/Serien`-Rest, #32 Metadaten-Lücke.
+**#22:** unverändert, Upstream-Bug bei Jellyfin-Android-TV, kein eigener Fix möglich, weiter offen.
 
-Beide Issues (#22/#35) bleiben offen bis Rubens Freigabe zum Schließen.
+**#29:** PM-Plan (TVDb-v4-API-Spike) steht seit 25.06. unbearbeitet im letzten Kommentar — nicht angefasst diese Session.
+
+**#32:** als eigene Projektphase ("Bestandsarchiv-Anreicherung") eingeordnet (PM-Kommentar 05.07.), #33/#34 hingen daran und sind jetzt erledigt — #32 selbst noch offen, größerer Scope, nicht ohne Rubens Entscheidung angefasst.
+
+**Nebenbefund:** SSH-Alias `synology` fehlte in dieser Session in `~/.ssh/config` (nur `hetzner` vorhanden) — nachgetragen, funktioniert wieder.
+
+Nächster sinnvoller Schritt: Ruben entscheiden lassen, ob #33/#34/#35 geschlossen werden, und ob #29 (TVDb-Spike) oder #32 (neue Projektphase) als nächstes angegangen werden soll.
