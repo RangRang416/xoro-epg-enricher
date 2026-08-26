@@ -1,13 +1,11 @@
-# Handover — xoro-epg-enricher (2026-08-22, Nachtrag)
+# Handover — xoro-epg-enricher (2026-08-26)
 
-**#33/#34/#35 geschlossen** (Rubens Freigabe).
+**#36 geschlossen** (FREIGABE Ruben 26.08.). Verifiziert: 4 saubere Trigger (23.-26.08.), Live-Inode-Vergleich Host=Container bestanden, kein Fehler im Jellyfin-Log um die Restart-Zeitpunkte.
 
-**Neuer Fund + Fix (#36, offen, wartet auf Verifikation über mehrere Tage):** Docker-Bind-Mounts übernehmen einen CIFS-Mount NICHT, wenn er erst nach dem Jellyfin-Container-Start entsteht (rprivate-Propagation, Inode-Vergleich bestätigt zwei unterschiedliche Sichten). Akuter Auslöser: windows-e (E:, Windows-PC) wurde heute erst um 15:30 gemountet, Jellyfin lief aber schon seit 07:53 — Container sah leeres Verzeichnis. Sofort-Fix: `docker restart jellyfin` manuell. Dauerhaft-Fix deployed: `mount-cifs.sh` (NAS-only) restartet Jellyfin jetzt automatisch, wenn ein Mount frisch dazukommt UND Jellyfin bereits lief (vorheriger Script-Kommentar "kein Restart nötig" war falsch, korrigiert). Backup der Vorversion: `mount-cifs.sh.bak-2026-08-22`.
+**Neuer Fund (kein Issue, noch offen zu entscheiden):** Mounts während Rubens Sehzeit (historisch z.B. 19:25/22:58 Uhr) lösen jetzt einen `docker restart jellyfin` mitten in möglicher Wiedergabe aus — Nebenwirkung des #36-Fixes. Frage an Ruben: eigenes Issue anlegen?
 
-**Jellyfin-Bibliotheken ergänzt (mit Rubens Freigabe):** 5 bisher fehlende E:-Ordner (Film, Fernsehfilm, Fernsehen, Film & Serie in Einsfestival → Filme; Doku-Reihe → Dokumentationen) hinzugefügt, roh (kryptische DVB-Rohdateinamen, keine Metadaten-Bereinigung — passt zu #32). Z:/Filme existiert nicht als Ordner (0-Byte-Datei von 2015). Voller Library-Scan angestoßen (Rubens Freigabe), lief bei Sessionende bei ~52%.
+**Scan-Status (Root Cause zur Handover-22.08-Frage):** Voller Scan vom 22.08. nie fertig geworden — letzter *abgeschlossener* Scan war 19.08., also VOR den 5 neuen E:-Ordnern. Die 5 Ordner haben daher nur 1-2 erfasste Items statt der erwarteten Masse. Zusätzlich 131 ffprobe-Fehler am 24.08. bei den rohen DVB-Dateien (kryptische Doppelendungen wie `.mp4.flv`) — passt zu #32. Ruben hat neuen vollen Scan auf "später" verschoben (ungünstige Uhrzeit, blockiert NAS ~1h).
 
-**Neu (#37, Backlog):** F:-Laufwerk vom Windows-PC ist noch nicht freigegeben/gemountet/in Jellyfin — zurückgestellt, nicht dringend.
+**Unverändert offen:** #22 (Upstream-Jellyfin-Bug), #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt), #32 (Metadaten-Lücke), #37 (Backlog, F:-Laufwerk).
 
-**Unverändert offen:** #22 (Upstream-Jellyfin-Bug), #29 (TVDb-Spike-Plan unbearbeitet seit 25.06.), #32 (Metadaten-Lücke, eigene Projektphase).
-
-Nächster sinnvoller Schritt: #36 nach ein paar Tagen Logs verifizieren (analog zum #35-Vorgehen); Scan-Ergebnis mit Ruben prüfen (kamen die 5 neuen Ordner sauber/erkennbar an, oder viel "Nicht erkannt"?); dann Richtung #29 oder #32 entscheiden.
+Nächster Schritt: Sehzeit-Neustart-Fund mit Ruben klären; Scan-Zeitpunkt abstimmen; danach #32 oder WI-2-Fortsetzung.
