@@ -1,13 +1,17 @@
-# Handover — xoro-epg-enricher (2026-08-26)
+# Handover — xoro-epg-enricher (2026-08-28)
 
-**#36 geschlossen** (FREIGABE Ruben 26.08.). Verifiziert: 4 saubere Trigger (23.-26.08.), Live-Inode-Vergleich Host=Container bestanden, kein Fehler im Jellyfin-Log um die Restart-Zeitpunkte.
+**#38-Diagnose abgeschlossen** (Live-Test mit Ruben, direkt am Server mitverfolgt). "Jellyfin crasht" war kein einheitliches Symptom, sondern drei getrennte Ursachen — aufgeteilt in:
 
-**Neu, WICHTIG (#38, akut gemeldet von Ruben, noch nicht diagnostiziert):** Jellyfin crasht bei jedem Versuch, Medien von externen Mount-Laufwerken (windows-e, buffalo-archiv) abzuspielen — nur die native NAS-Bibliothek funktioniert. Laut Ruben besteht das schon länger, **kein Zusammenhang mit #36** (von ihm explizit bestätigt, nicht selbst verifiziert). Passt zu zwei bekannten offenen Fäden: (1) `projekt.md` Phase VI — Transcode-Last bei `.ts`-Wiedergabe sprengt das 1GB-RAM-NAS, Controller-Freigabe seit 30.05. erteilt, aber nie als GitHub-Issue umgesetzt (VI-1/VI-2/VI-3 existieren nirgends als Issue); (2) eigener Fund vom 26.08.: 131 ffprobe-Fehler am 24.08. bei rohen Dateien auf windows-e. Nächste Session: mit Rubens Freigabe live auf der NAS diagnostizieren (Container-Status, RAM, Jellyfin-Logs während eines Wiedergabeversuchs).
+1. **#22 (App-Absturz, Root Cause jetzt bekannt):** Jellyfin Android-TV-App (0.19.10) sendet beim Wiedergabe-Ende gelegentlich negative `PositionTicks`, Server wirft ungefangene `ArgumentOutOfRangeException` → HTTP 500 → App-Absturz beim Zurückgehen ins Hauptmenü. Stacktrace jetzt in #22 dokumentiert. Ruben-Entscheidung: nur als Upstream-Bug vermerken, kein eigener Server-Patch (kein Custom-Image).
+2. **#39 (neu, Transcoding-Problem):** Phase VI aus `projekt.md`/`controller-briefing-phase6.md` wiederaufgenommen — war seit 2026-05-30 vom Controller freigegeben, aber nie als Issue umgesetzt. Konkreter Beleg heute: altes XviD/AVI-Rip von der Linkstation zwingt Jellyfin zum Transkodieren (Chromecast kann den Container/Codec nicht direkt). Kein Absturz bei diesem Test, aber das dokumentierte OOM-Risiko (1GB-RAM-NAS) bleibt bei größeren Dateien. Plan liegt fertig vor: VI-1 (Diagnose-Gate) → VI-3 (Server-Profil, primär) → VI-2 (Remux-Fallback).
+3. **#32 (ergänzt):** Neue Beobachtung — Serie von der Linkstation erstmals aufgerufen, noch nicht erkannt, existiert evtl. doppelt (Linkstation + Synology-nativ). Noch nicht weiter untersucht.
 
-**Sehzeit-Restart-Nebenfund (aus #36, weiterhin ohne eigenes Issue):** Mounts während Rubens Sehzeit lösen jetzt einen `docker restart jellyfin` aus. Noch zu entscheiden: eigenes Issue oder Backlog-Vermerk.
+**#38 selbst:** Kommentar mit Vorschlag zum Schließen (zugunsten #22/#39/#32) hinterlassen, Ruben muss noch bestätigen (MUSS-Regel: Issues nie eigenständig schließen).
 
-**Scan-Status:** Voller Scan vom 22.08. nie fertig geworden (letzter abgeschlossener Scan: 19.08., vor den 5 neuen E:-Ordnern). Neuer Scan-Zeitpunkt mit Ruben noch abzustimmen (auf "später" verschoben, 25.08.).
+**Sehzeit-Restart-Nebenfund (aus #36, weiterhin ohne eigenes Issue):** Mounts während Rubens Sehzeit lösen einen `docker restart jellyfin` aus. Noch zu entscheiden.
 
-**Unverändert offen:** #22 (Upstream-Jellyfin-Bug), #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt), #32 (Metadaten-Lücke), #37 (Backlog, F:-Laufwerk).
+**Scan-Status:** Voller Scan vom 22.08. nie fertig geworden (letzter abgeschlossener Scan: 19.08.). Neuer Scan-Zeitpunkt weiterhin offen.
 
-Nächster Schritt: **#38 zuerst** (akuter Nutzer-Blocker) — Live-Diagnose auf der NAS. Danach Sehzeit-Nebenfund klären, Scan nachholen, #32/WI-2 fortsetzen.
+**Unverändert offen:** #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt — Achtung: nicht verwechseln mit dem PM-Zieldokument `project.md`, das existiert separat und ist aktuell), #37 (Backlog, F:-Laufwerk).
+
+Nächster Schritt: Ruben zu #38-Schließung befragen; danach **#39 (VI-1-Diagnose-Gate)** als nächstes inhaltliches Thema — Plan liegt fertig vor, kann direkt starten.
