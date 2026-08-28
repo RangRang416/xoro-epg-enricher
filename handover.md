@@ -8,10 +8,12 @@
 
 **#38 geschlossen** (FREIGABE Ruben 28.08., zugunsten #22/#39/#32).
 
+**#39 VI-1-Test durchgeführt (28.08.), Ergebnis widerlegt die Ausgangshypothese teilweise:** `ffprobe` bestätigt HEVC 1080p + EAC3/AAC_LATM in den nativen `.ts`-Aufnahmen, 2 von 3 getesteten Dateien mit `dvb_subtitle`-Bild-Untertitel. Live-Test "Monster House" am Chromecast: **kein Server-seitiges Transcoding** (keine ffmpeg-Logs, kein Transcode-Cache-Eintrag) — war Direct Play trotz Untertitel-Stream. Tatsächliches Symptom: Wiedergabe stockte massiv, lief nach Google-TV-Geräte-Neustart normal — deutet auf Client-seitiges Problem (HEVC-Hardware-Decoder?), nicht auf das RAM-/Transcode-Risiko, das Phase VI ursprünglich adressieren wollte. Häufigkeit des Stockens unbekannt (Ruben hat nicht bewusst darauf geachtet bisher). **Ruben-Entscheidung: #39 zurückstellen**, kein akuter Handlungsdruck. Ergebnis in #39 dokumentiert.
+
 **Sehzeit-Restart-Nebenfund (aus #36, weiterhin ohne eigenes Issue):** Mounts während Rubens Sehzeit lösen einen `docker restart jellyfin` aus. Noch zu entscheiden.
 
-**Scan-Status:** Voller Scan vom 22.08. nie fertig geworden (letzter abgeschlossener Scan: 19.08.). Neuer Scan-Zeitpunkt weiterhin offen.
+**Scan-Status:** Voller Scan vom 22.08. nie fertig geworden (letzter abgeschlossener Scan: 19.08.). Neuer Scan-Zeitpunkt weiterhin offen — beim nächsten Vorschlag den Zeitpunkt so wählen, dass er nicht mit Wiedergabetests kollidiert (Scan belastet NAS ~1h).
 
-**Unverändert offen:** #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt — Achtung: nicht verwechseln mit dem PM-Zieldokument `project.md`, das existiert separat und ist aktuell), #37 (Backlog, F:-Laufwerk).
+**Unverändert offen:** #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt — Achtung: nicht verwechseln mit dem PM-Zieldokument `project.md`, das existiert separat und ist aktuell), #32 (inkl. Linkstation-Duplikat-Beobachtung aus #38), #37 (Backlog, F:-Laufwerk).
 
-Nächster Schritt: **#39 (VI-1-Diagnose-Gate)** als nächstes inhaltliches Thema — Plan liegt fertig vor, kann direkt starten.
+Nächster Schritt: Falls das Stocken-Symptom nochmal auftritt — Häufigkeit/Muster beobachten, dann ggf. eigenes Issue. Ansonsten: Scan-Zeitpunkt abstimmen, #32 (Metadaten/Linkstation-Duplikat) oder WI-2-Fortsetzung.
