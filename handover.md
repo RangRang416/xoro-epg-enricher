@@ -12,8 +12,8 @@
 
 **Sehzeit-Restart-Nebenfund (aus #36, weiterhin ohne eigenes Issue):** Mounts während Rubens Sehzeit lösen einen `docker restart jellyfin` aus. Noch zu entscheiden.
 
-**Scan-Status:** Voller Scan vom 22.08. nie fertig geworden (letzter abgeschlossener Scan: 19.08.). Neuer Scan-Zeitpunkt weiterhin offen — beim nächsten Vorschlag den Zeitpunkt so wählen, dass er nicht mit Wiedergabetests kollidiert (Scan belastet NAS ~1h).
+**Scan gestartet (FREIGABE Ruben 28.08., per API angestoßen):** Voller Library-Scan läuft seit 28.08. (Task-ID `7738148ffcd07979c7ceb148e06b3aed`), Ziel: die 5 seit 22.08. hängenden neuen E:-Ordner vollständig erfassen (voriger Versuch vom 22.08. nie fertig geworden). Dauer laut Erfahrung bis zu ~1h. **Ergebnis noch nicht geprüft** — nächste Session: Scan-Abschluss verifizieren (`GET /ScheduledTasks/{id}`, State sollte "Idle" sein, `LastExecutionResult` "Completed"), dann Item-Counts der 5 Ordner erneut prüfen (gleiches Vorgehen wie am 26.08.: `/Items?Recursive=true&IncludeItemTypes=Movie&Fields=Path,ProviderIds` und nach `windows-e`-Unterpfaden filtern) und mit Ruben abgleichen, ob die Erkennung jetzt sauber ist oder viel "Nicht erkannt" bleibt (passt dann zu #32).
 
 **Unverändert offen:** #29 (hängt an WI-1→WI-2, seit Juni bei `POST /Library/Refresh` blockiert, `projekt.md` seit 17.06. nicht mehr gepflegt — Achtung: nicht verwechseln mit dem PM-Zieldokument `project.md`, das existiert separat und ist aktuell), #32 (inkl. Linkstation-Duplikat-Beobachtung aus #38), #37 (Backlog, F:-Laufwerk).
 
-Nächster Schritt: Falls das Stocken-Symptom nochmal auftritt — Häufigkeit/Muster beobachten, dann ggf. eigenes Issue. Ansonsten: Scan-Zeitpunkt abstimmen, #32 (Metadaten/Linkstation-Duplikat) oder WI-2-Fortsetzung.
+Nächster Schritt: Scan-Ergebnis verifizieren (siehe oben). Falls das Stocken-Symptom aus #39 nochmal auftritt — Häufigkeit/Muster beobachten, dann ggf. eigenes Issue. Danach #32 (Metadaten/Linkstation-Duplikat) oder WI-2-Fortsetzung.
