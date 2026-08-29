@@ -4,4 +4,8 @@
 
 **Unverändert offen:** #29 (hängt an WI-1→WI-2, blockiert seit Juni bei `POST /Library/Refresh`), #32 (Metadaten-Lücke + Linkstation-Duplikat-Beobachtung aus #38), #37 (Backlog, F:-Laufwerk), Sehzeit-Restart-Nebenfund aus #36 (noch kein Issue, Entscheidung mit Ruben ausstehend: eigenes Issue vs. Backlog). #40/JDownloader läuft separat im Hetzner-Server-Repo.
 
-**Nächster Schritt:** Mit Ruben klären, welches Issue als nächstes (#32 vs. WI-2-Fortsetzung) + Sehzeit-Nebenfund einordnen.
+**Sehzeit-Nebenfund behoben (29.08.):** `mount-cifs.sh` verschiebt den `docker restart jellyfin` jetzt per Jellyfin-Sessions-API-Check, wenn gerade eine Wiedergabe läuft (Details: Issue-#36-Kommentar). Getestet + deployed, kein eigenes Issue nötig.
+
+**#32 Schicht-1-Blocker aufgelöst (29.08., FREIGABE Ruben):** <20%-Ziel bleibt verbindlich, Branch B (Jellyfin-API) reicht ohne Schreibzugriff auf buffalo-archiv. Planner-Start freigegeben (siehe Issue-#32-Kommentar).
+
+**Nächster Schritt:** WI-2-Inventur-Spike (Opus-Subagent) läuft im Hintergrund — Ergebnis kommt als Kommentar auf #32. Bei Session-Ende vor Abschluss: nächste Session zuerst Spike-Ergebnis prüfen, dann WI-3-Zuschnitt entscheiden.
