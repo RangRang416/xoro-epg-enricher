@@ -651,6 +651,57 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
         print(f'  → Verschieben fehlgeschlagen: {e}')
 
 
+def rename_in_place(folder: Path, dry_run: bool, stats: dict = None):
+    """Benennt Aufnahme-Ordner + Videodateien direkt am Aufnahmeort um, ohne zu verschieben.
+    Für Sticks, die manuell in einem zweiten Xoro-Gerät ohne NAS-/Jellyfin-Anbindung gelesen
+    werden (dessen Dateibrowser zeigt nur Datei-/Ordnernamen, keine NFO-Metadaten) — anders als
+    move_recording() wird hier auch bei nicht-TMDb/TVDb-bestätigten Treffern umbenannt (Fallback-
+    Titel aus RECInfo ist besser als 'record.ts')."""
+    nfo = folder / 'movie.nfo'
+    if not nfo.exists():
+        return
+    info = _nfo_info(nfo)
+    kind = info.get('type', 'unknown')
+
+    if kind == 'series':
+        show = _sanitize(info.get('showtitle') or folder.name)
+        s, e = info.get('season', '01'), info.get('episode', '01')
+        ep_title = _sanitize(info.get('title', ''))
+        name = f'{show} S{s}E{e}' + (f' {ep_title}' if ep_title and ep_title != show else '')
+    else:
+        title = _sanitize(info.get('title') or folder.name)
+        year  = info.get('year', '')
+        name  = f'{title} ({year})' if year else title
+
+    if not name or name == folder.name:
+        print('  → bereits benannt')
+        return
+
+    dest = folder.parent / name
+    if dest.exists():
+        print(f'  → Zielname bereits vorhanden: {name}')
+        return
+
+    if dry_run:
+        print(f'  → [dry-run] würde umbenennen → {name}')
+        return
+
+    try:
+        for suffix in ('', '.idx', '.meta', '.pmt'):
+            src = folder / f'record.ts{suffix}'
+            if src.exists():
+                src.rename(folder / f'{name}.ts{suffix}')
+        nfo_src = folder / 'movie.nfo'
+        if nfo_src.exists():
+            nfo_src.rename(folder / f'{name}.nfo')
+        folder.rename(dest)
+        print(f'  → umbenannt → {name}')
+        if stats is not None:
+            stats['renamed_in_place'] = stats.get('renamed_in_place', 0) + 1
+    except Exception as e:
+        print(f'  → Umbenennen fehlgeschlagen: {e}')
+
+
 # ── Jellyfin ──────────────────────────────────────────────────────────────────
 
 def jellyfin_refresh(url: str, api_key: str) -> bool:
@@ -1228,6 +1279,8 @@ def main():
     parser.add_argument('--dest-movies',    default=None, help='Zielordner für Filme nach Enrichment')
     parser.add_argument('--dest-series',    default=None, help='Zielordner für Serien nach Enrichment')
     parser.add_argument('--dest-unmatched', default=None, help='Zielordner für nicht erkannte Aufnahmen')
+    parser.add_argument('--rename-in-place', action='store_true',
+                        help='Aufnahmen am Ort umbenennen statt verschieben (Stick ohne NAS-Anbindung, z.B. zweiter Xoro)')
     parser.add_argument('--scan-existing',       action='store_true', help='Bestehende Serien-Ordner scannen, fehlende NFOs ergänzen')
     parser.add_argument('--scan-existing-movies', action='store_true', help='Bestehende Film-Ordner ohne RECInfo.txt scannen, NFOs per TMDb ergänzen')
     parser.add_argument('--normalize-episodes', action='store_true', help='Episode-NFOs für Serien mit kryptischen Dateinamen erstellen (TVDb-ID aus tvshow.nfo)')
@@ -1235,6 +1288,10 @@ def main():
     parser.add_argument('--options-xml',    default='/volume1/dvb-library/jellyfin-config/root/default/Serien/options.xml',
                         help='Pfad zu Jellyfin Serien-options.xml (für AK6 Offline-Modus)')
     args = parser.parse_args()
+
+    if args.rename_in_place and (args.dest_movies or args.dest_series or args.dest_unmatched):
+        print('Fehler: --rename-in-place kann nicht mit --dest-movies/--dest-series/--dest-unmatched kombiniert werden.')
+        sys.exit(1)
 
     tmdb = TMDb(args.tmdb_key, args.language) if args.tmdb_key else None
     tvdb = TVDb(args.tvdb_key) if args.tvdb_key else None
@@ -1318,15 +1375,19 @@ def main():
         else:
             stats['error'] += 1
 
-        if status in ('done', 'fallback', 'skip:already-done') and (args.dest_movies or args.dest_series or args.dest_unmatched):
-            move_recording(folder, args.dest_movies, args.dest_series, args.dry_run, stats, dest_unmatched=args.dest_unmatched)
+        if status in ('done', 'fallback', 'skip:already-done'):
+            if args.rename_in_place:
+                rename_in_place(folder, args.dry_run, stats)
+            elif args.dest_movies or args.dest_series or args.dest_unmatched:
+                move_recording(folder, args.dest_movies, args.dest_series, args.dry_run, stats, dest_unmatched=args.dest_unmatched)
 
         if tmdb and status in ('done', 'fallback'):
             time.sleep(0.3)
 
-    moved    = stats.get('moved', 0)
-    fallback = stats['fallback']
-    print(f'\nFertig: {stats["done"]} erkannt, {fallback} nicht erkannt, {stats["skip"]} übersprungen, {stats["error"]} Fehler, {moved} verschoben')
+    moved       = stats.get('moved', 0)
+    renamed_ip  = stats.get('renamed_in_place', 0)
+    fallback    = stats['fallback']
+    print(f'\nFertig: {stats["done"]} erkannt, {fallback} nicht erkannt, {stats["skip"]} übersprungen, {stats["error"]} Fehler, {moved} verschoben, {renamed_ip} umbenannt')
 
     if unmatched and not args.dry_run:
         log_path = Path(args.dest_movies or args.dirs[0] if args.dirs else '/volume1/dvb-library') / 'unmatched.log'
@@ -1345,8 +1406,8 @@ def main():
         print('Jellyfin-Bibliothek wird aktualisiert...')
         print('OK' if jellyfin_refresh(args.jellyfin_url, args.jellyfin_key) else 'Fehlgeschlagen')
 
-    if not args.dry_run and (stats['done'] > 0 or fallback > 0 or moved > 0 or stats['error'] > 0):
-        msg = f'{stats["done"]} erkannt, {fallback} nicht erkannt, {moved} verschoben'
+    if not args.dry_run and (stats['done'] > 0 or fallback > 0 or moved > 0 or renamed_ip > 0 or stats['error'] > 0):
+        msg = f'{stats["done"]} erkannt, {fallback} nicht erkannt, {moved} verschoben, {renamed_ip} umbenannt'
         try:
             os.system(f'/usr/syno/bin/synodsmnotify admin "Xoro Enricher" "{msg}"')
         except Exception:

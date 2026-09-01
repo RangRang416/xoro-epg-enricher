@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2026-09-01] — #41: Manuelles Umbenennen von Aufnahmen am Ort (Stick ohne NAS-Anbindung)
+
+### Added
+- `--rename-in-place`: benennt Aufnahme-Ordner + Videodatei direkt am Aufnahmeort um (`<Titel> (<Jahr>)` bzw. `<Show> SxxEyy <Episodentitel>`), ohne zu verschieben. Für den zweiten Xoro bei Bozena, dessen eigener Dateibrowser nur Datei-/Ordnernamen zeigt, keine NFO-Metadaten.
+- Benennt auch bei unmatched/Fallback-NFO um (anders als `move_recording()`) — roher EPG-Titel ist lesbarer als `record.ts`.
+- Schließt sich mit `--dest-movies`/`--dest-series`/`--dest-unmatched` gegenseitig aus (Fehlermeldung bei Kombination).
+
 ## [2026-09-01] — Fix: Xoro-Aufnahmen mit kaputtem Zeitstempel sortieren falsch in "Kürzlich hinzugefügt"
 
 ### Fixed
