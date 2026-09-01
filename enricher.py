@@ -559,6 +559,16 @@ def _nfo_info(nfo_path: Path) -> dict:
     return {'type': 'unknown', 'recognized': False}
 
 
+def _touch_now(path: Path):
+    """Setzt mtime auf jetzt — Xoro schreibt Aufnahmedateien ohne gültigen Zeitstempel (Unix-Epoche),
+    dadurch sortiert Jellyfins 'Kürzlich hinzugefügt' sie ganz ans Ende statt oben ein."""
+    try:
+        now = time.time()
+        os.utime(path, (now, now))
+    except Exception:
+        pass
+
+
 def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bool, stats: dict = None, dest_unmatched: str = None):
     nfo = folder / 'movie.nfo'
     if not nfo.exists():
@@ -593,7 +603,9 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
         for suffix in ('', '.idx', '.meta', '.pmt'):
             src = folder / f'record.ts{suffix}'
             if src.exists():
-                shutil.move(str(src), str(season_dir / f'{basename}.ts{suffix}'))
+                dest_file = season_dir / f'{basename}.ts{suffix}'
+                shutil.move(str(src), str(dest_file))
+                _touch_now(dest_file)
         # NFO umbenennen (movie.nfo → basename.nfo)
         nfo_src = folder / 'movie.nfo'
         if nfo_src.exists():
@@ -629,7 +641,9 @@ def move_recording(folder: Path, dest_movies: str, dest_series: str, dry_run: bo
         for suffix in ('', '.idx', '.meta', '.pmt'):
             src = dest / f'record.ts{suffix}'
             if src.exists():
-                src.rename(dest / f'{name}.ts{suffix}')
+                dest_file = dest / f'{name}.ts{suffix}'
+                src.rename(dest_file)
+                _touch_now(dest_file)
         print(f'  → verschoben → {dest}')
         if stats is not None:
             stats['moved'] = stats.get('moved', 0) + 1

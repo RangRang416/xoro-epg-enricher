@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2026-09-01] — Fix: Xoro-Aufnahmen mit kaputtem Zeitstempel sortieren falsch in "Kürzlich hinzugefügt"
+
+### Fixed
+- `_touch_now()`: setzt mtime der verschobenen Video-Dateien auf den Verschiebezeitpunkt. Xoro schreibt Aufnahmen ohne gültigen Zeitstempel (Unix-Epoche, 1.1.1970) — Jellyfins "Kürzlich hinzugefügt" sortiert danach, betroffene Filme/Serien landeten ganz unten statt oben.
+- Nur in `move_recording()` (Filme- + Serien-Direktpfad aus Xoro-Aufnahme) angewendet — NICHT in der generischen Serien-Reorganisation, da dort Dateien auch aus Fremdquellen (Buffalo-Archiv, Windows-E) mit gültigen Original-Zeitstempeln stammen, die nicht überschrieben werden dürfen.
+
 ## [2026-07-01] — Wake-on-LAN für PC + Linkstation vor Abendnutzung
 
 ### Added
