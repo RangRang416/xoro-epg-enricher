@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2026-09-18] — #43: Zweiter Jellyfin-Nutzer "Komo" mit eigenen Bibliotheken
+
+### Added
+- NAS-seitig (nicht im Repo): Shared Folder `/volume1/komo/{Filme,Fotos,Gifs}` bereits in Vorsession befüllt.
+- `docker-compose.yml` (NAS, `/volume1/dvb-library/`): drei neue `:ro`-Mounts (`komo-filme`, `komo-fotos`, `komo-gifs`).
+- Jellyfin: 3 Bibliotheken ("Komo Filme" movies, "Komo Fotos"/"Komo Gifs" homevideos) + Nutzer "Komo" (aus abgebrochener Vorsession bereits vorhanden, aber ohne Bibliothekszugriff) auf diese 3 Bibliotheken beschränkt (`EnableAllFolders: false`), Passwort neu gesetzt. Kein Fernzugriff eingerichtet (nur LAN, laut Ruben ausreichend).
+
 ## [2026-09-01] — #41: Manuelles Umbenennen von Aufnahmen am Ort (Stick ohne NAS-Anbindung)
 
 ### Added
