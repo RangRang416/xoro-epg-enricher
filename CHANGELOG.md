@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- `scripts/provider_coverage.py` — gemeinsames Messskript für #32/WI-3 (WI-3.1). Rein lesend: zählt Movie-Items ohne ProviderId über `GET /Items`, aufgeschlüsselt nach Quell-Prefix (`/bestehende-filme`, `/windows-e`, `/buffalo-archiv`), mit expliziten `OTHER`-Eimer, ProviderId-Histogramm, `TotalRecordCount`-Konsistenzprüfung, optionalem Paging und JSON-Ausgabe für Vorher-/Nachher-Vergleiche. Nur stdlib, API-Key ausschließlich über `--jellyfin-key`/`JELLYFIN_KEY` (nicht im Code). Default-Scope = Library "Filme" (ParentId), weil der WI-2-Spike genau diese Library gemessen hat.
+- `BASELINE` im Skript auf 2026-09-18 neu verankert (401/1310, 30,6%) — die alte WI-2-Baseline (399/1298, 29.08.) war durch Bestandsdrift veraltet (Sonnet-Gegenprüfung bestätigt: `buffalo-archiv` byte-identisch, `bestehende-filme`-Delta exakt durch URIInfo.bin-Wachstum 160→170 erklärt, `windows-e`-Delta von -9 Items bleibt ungeklärt, siehe Issue-#32-Kommentar).
+
 ## [2026-09-18] — #43: Zweiter Jellyfin-Nutzer "Komo" mit eigenen Bibliotheken
 
 ### Added
