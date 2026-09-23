@@ -30,16 +30,17 @@ LIBRARY_MAP = {
 }
 
 
-def immich_album_assets(album_name, api_key):
+def list_all_albums(api_key):
     r = requests.get(f"{IMMICH_URL}/api/albums", headers={"x-api-key": api_key}, timeout=30)
     r.raise_for_status()
-    albums = {a["albumName"]: a["id"] for a in r.json()}
-    if album_name not in albums:
-        sys.exit(f"Album '{album_name}' nicht gefunden. Verfuegbar: {list(albums)}")
+    return {a["albumName"]: a["id"] for a in r.json() if a["albumName"] and a["assetCount"] > 0}
+
+
+def album_assets(album_id, api_key):
     r = requests.post(
         f"{IMMICH_URL}/api/search/metadata",
         headers={"x-api-key": api_key, "Content-Type": "application/json"},
-        json={"albumIds": [albums[album_name]]},
+        json={"albumIds": [album_id]},
         timeout=60,
     )
     r.raise_for_status()
@@ -84,46 +85,78 @@ def find_existing_collection(name, api_key):
     return next((it for it in r.json()["Items"] if it["Name"] == name), None)
 
 
+CHUNK_SIZE = 40  # vermeidet HTTP 414 (URI Too Long) bei grossen Alben
+
+
+def chunked(items, size):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+
 def create_or_update_collection(name, jellyfin_ids, api_key):
-    ids_param = ",".join(jellyfin_ids)
+    chunks = list(chunked(jellyfin_ids, CHUNK_SIZE))
     existing = find_existing_collection(name, api_key)
     if existing:
         coll_id = existing["Id"]
-        r = requests.post(
-            f"{JELLYFIN_URL}/Collections/{coll_id}/Items",
-            params={"Ids": ids_param, "api_key": api_key},
-            timeout=30,
-        )
-        r.raise_for_status()
+        rest = chunks
     else:
         r = requests.post(
             f"{JELLYFIN_URL}/Collections",
-            params={"Name": name, "Ids": ids_param, "api_key": api_key},
+            params={"Name": name, "Ids": ",".join(chunks[0]), "api_key": api_key},
             timeout=30,
         )
         r.raise_for_status()
         coll_id = r.json()["Id"]
+        rest = chunks[1:]
+
+    for chunk in rest:
+        r = requests.post(
+            f"{JELLYFIN_URL}/Collections/{coll_id}/Items",
+            params={"Ids": ",".join(chunk), "api_key": api_key},
+            timeout=30,
+        )
+        r.raise_for_status()
     return coll_id
+
+
+def sync_one(album_name, album_id, jellyfin_key):
+    assets = album_assets(album_id, IMMICH_KEY_HOLDER["key"])
+    matched, unmatched = match_assets_to_jellyfin(assets, jellyfin_key)
+    if unmatched:
+        print(f"  WARNUNG: {len(unmatched)} Asset(s) nicht in Jellyfin gefunden: {unmatched}", file=sys.stderr)
+    if not matched:
+        print(f"  '{album_name}': keine Treffer, Collection wird nicht angelegt/geaendert.")
+        return
+    coll_id = create_or_update_collection(album_name, matched, jellyfin_key)
+    print(f"  '{album_name}' ({coll_id}): {len(matched)} Items gesetzt, {len(unmatched)} nicht gematcht.")
+
+
+IMMICH_KEY_HOLDER = {"key": None}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("album_name", help="Exakter Immich-Albumname")
+    parser.add_argument("album_name", nargs="?", help="Exakter Immich-Albumname (weglassen = --all)")
+    parser.add_argument("--all", action="store_true", help="Alle vorhandenen Alben synchronisieren")
     parser.add_argument("--immich-key", default=os.environ.get("IMMICH_API_KEY"))
     parser.add_argument("--jellyfin-key", default=os.environ.get("JELLYFIN_API_KEY"))
     args = parser.parse_args()
     if not args.immich_key or not args.jellyfin_key:
         sys.exit("--immich-key/--jellyfin-key oder IMMICH_API_KEY/JELLYFIN_API_KEY erforderlich")
+    if not args.album_name and not args.all:
+        sys.exit("Entweder einen Albumnamen angeben oder --all fuer alle Alben.")
 
-    assets = immich_album_assets(args.album_name, args.immich_key)
-    matched, unmatched = match_assets_to_jellyfin(assets, args.jellyfin_key)
-    if unmatched:
-        print(f"WARNUNG: {len(unmatched)} Asset(s) nicht in Jellyfin gefunden: {unmatched}", file=sys.stderr)
-    if not matched:
-        sys.exit("Keine Treffer - Collection wird nicht angelegt/geaendert.")
+    IMMICH_KEY_HOLDER["key"] = args.immich_key
+    albums = list_all_albums(args.immich_key)
 
-    coll_id = create_or_update_collection(args.album_name, matched, args.jellyfin_key)
-    print(f"Collection '{args.album_name}' ({coll_id}): {len(matched)} Items gesetzt, {len(unmatched)} nicht gematcht.")
+    if args.all:
+        print(f"Synchronisiere {len(albums)} Album(e): {list(albums)}")
+        for name, album_id in albums.items():
+            sync_one(name, album_id, args.jellyfin_key)
+    else:
+        if args.album_name not in albums:
+            sys.exit(f"Album '{args.album_name}' nicht gefunden. Verfuegbar: {list(albums)}")
+        sync_one(args.album_name, albums[args.album_name], args.jellyfin_key)
 
 
 if __name__ == "__main__":
