@@ -6,6 +6,17 @@
 - `scripts/provider_coverage.py` — gemeinsames Messskript für #32/WI-3 (WI-3.1). Rein lesend: zählt Movie-Items ohne ProviderId über `GET /Items`, aufgeschlüsselt nach Quell-Prefix (`/bestehende-filme`, `/windows-e`, `/buffalo-archiv`), mit expliziten `OTHER`-Eimer, ProviderId-Histogramm, `TotalRecordCount`-Konsistenzprüfung, optionalem Paging und JSON-Ausgabe für Vorher-/Nachher-Vergleiche. Nur stdlib, API-Key ausschließlich über `--jellyfin-key`/`JELLYFIN_KEY` (nicht im Code). Default-Scope = Library "Filme" (ParentId), weil der WI-2-Spike genau diese Library gemessen hat.
 - `BASELINE` im Skript auf 2026-09-18 neu verankert (401/1310, 30,6%) — die alte WI-2-Baseline (399/1298, 29.08.) war durch Bestandsdrift veraltet (Sonnet-Gegenprüfung bestätigt: `buffalo-archiv` byte-identisch, `bestehende-filme`-Delta exakt durch URIInfo.bin-Wachstum 160→170 erklärt, `windows-e`-Delta von -9 Items bleibt ungeklärt, siehe Issue-#32-Kommentar).
 
+## [2026-09-23] — #51: Immich-Jellyfin-Sync-Automatisierung
+
+### Added
+- `scripts/immich_jellyfin_bridge.py --all`: synct jetzt alle Immich-Alben statt nur eines
+- Chunking (40er-Batches) gegen HTTP 414 bei großen Alben
+- Windows Task Scheduler "ImmichJellyfinSync": täglich 18:00, `StartWhenAvailable` (holt verpasste Läufe nach)
+- PC-seitig (nicht im Repo): `run_sync.sh` Wrapper, API-Keys in `/root/immich/.immich_api_key`/`.jellyfin_api_key` (chmod 600)
+
+### Fixed
+- Komo-Jellyfin-Nutzer hatte `IsAdministrator: true` (Ruben hatte das selbst gesetzt, unnötig — `EnableCollectionManagement: true` reicht). Zurückgesetzt auf `false`, `EnabledFolders` um "Sammlungen" erweitert (Ruben-Entscheidung, Komo sieht jetzt auch 7 vorbestehende Collections).
+
 ## [2026-09-23] — #50: Immich→Jellyfin-Brücke (Pilot)
 
 ### Added
