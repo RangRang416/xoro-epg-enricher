@@ -6,6 +6,15 @@
 - `scripts/provider_coverage.py` — gemeinsames Messskript für #32/WI-3 (WI-3.1). Rein lesend: zählt Movie-Items ohne ProviderId über `GET /Items`, aufgeschlüsselt nach Quell-Prefix (`/bestehende-filme`, `/windows-e`, `/buffalo-archiv`), mit expliziten `OTHER`-Eimer, ProviderId-Histogramm, `TotalRecordCount`-Konsistenzprüfung, optionalem Paging und JSON-Ausgabe für Vorher-/Nachher-Vergleiche. Nur stdlib, API-Key ausschließlich über `--jellyfin-key`/`JELLYFIN_KEY` (nicht im Code). Default-Scope = Library "Filme" (ParentId), weil der WI-2-Spike genau diese Library gemessen hat.
 - `BASELINE` im Skript auf 2026-09-18 neu verankert (401/1310, 30,6%) — die alte WI-2-Baseline (399/1298, 29.08.) war durch Bestandsdrift veraltet (Sonnet-Gegenprüfung bestätigt: `buffalo-archiv` byte-identisch, `bestehende-filme`-Delta exakt durch URIInfo.bin-Wachstum 160→170 erklärt, `windows-e`-Delta von -9 Items bleibt ungeklärt, siehe Issue-#32-Kommentar).
 
+## [2026-09-23] — #49: Immich als Foto-/Homevideo-Verwaltung (PC-seitig)
+
+### Added
+- PC-seitig (nicht im Repo): Immich (nativer Docker-Stack in WSL2 Ubuntu, `~/immich/`) liest read-only von der Komo-Freigabe (`Fotos`/`Gifs`/`Filme` — alle drei ohne echte TMDb-Titel, siehe #49). Dedizierter DSM-Nur-Lese-Benutzer, da Guest-Account auf dieser Synology deaktiviert ist. Mount per `/etc/fstab` persistent.
+- `.wslconfig` (Windows-Profil): WSL2 auf Mirrored-Netzwerkmodus umgestellt, damit Handy-Auto-Backup den Server im LAN erreicht (192.168.2.2:2283 statt interner WSL-NAT-IP).
+
+### Nicht geändert
+- `enricher.py`/Jellyfin unverändert — Immich übernimmt ausschließlich Inhalte ohne Filmtitel/TMDb-Treffer, keine Überschneidung mit der bestehenden Pipeline.
+
 ## [2026-09-18] — #43: Zweiter Jellyfin-Nutzer "Komo" mit eigenen Bibliotheken
 
 ### Added

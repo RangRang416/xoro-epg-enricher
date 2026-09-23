@@ -1,11 +1,11 @@
-# Handover — xoro-epg-enricher (2026-09-21, Session-Ende)
+# Handover — xoro-epg-enricher (2026-09-23, Session-Ende)
 
-**#44 (NAS-Speicherlast) erledigt + geschlossen.** Root Cause: Inotify-Watches (6.568/8.192) durch `EnableRealtimeMonitor` auf Filme/Serien. Fix: aus + Neustart → Watches auf 2, +79 MB Jellyfin-Puffer. Scan-Trigger von driftendem 12h-Intervall auf festen `DailyTrigger` 01:00 umgestellt (verhinderte 2h-Blockade in der Prime-Time). HDD-Ruhezustand bestätigt aktiv (10 Min) — Syn. muss ab jetzt durchgehend an bleiben (kein RTC-Wake), Platten schlafen von selbst.
+**#49 (neu, Immich) — technisch fertig, 3 manuelle Ruben-Schritte offen:** PC-seitige Immich-Installation (WSL2, nativer Docker) liest read-only Komo-Fotos/Gifs/Filme (alle ohne echten TMDb-Titel). Offen: `wsl --shutdown` (aktiviert Mirrored-Netzwerkmodus), Admin-Account im Immich-Web-UI, External Library + Scan. Details: Issue #49, `[[project_immich_setup_2026-09-23]]` (Memory).
 
-**Grundprüfung Pipeline (auf Rubens Wunsch):** Bibliotheks-Aufnahme ✅, Abspielbarkeit ✅ (auch HEVC-Altfall "Glückliche Männer", weiterhin Direct Play ohne Transcoding). Erkennung neuer Aufnahmen nicht testbar ohne physisch eingesteckten Xoro-Stick.
+**Kein Code-Change an enricher.py/Jellyfin in dieser Session.**
 
-**Neu angelegt, alle zurückgestellt:** #45 (Desktop aus Jellyfin-Kette, blockiert auf Rubens Linkstation-Ruhezustand-Check), #46 (generische Serien-Dateinamen, Testfall Barnaby + jetzt auch GoT/Euphoria belegt, fertig diagnostiziert), #47 (TMDb-Jahr-Fallback, unbestätigte Hypothese), #48 (Plugin-Entscheidung, Recherche fertig).
+**Bestehender Portfolio-Konflikt weiterhin offen:** #37 ("F: einbinden") widerspricht #45 ("Desktop raus") — Rubens Entscheidung steht noch aus.
 
-**Ungeklärter Portfolio-Konflikt:** #37 ("F: einbinden") widerspricht #45 ("Desktop raus") — Rubens Entscheidung aussteht, vermutlich #37 obsolet.
+**Neuer Backlog-Punkt (unkonkretisiert):** Ruben möchte bestehende nächtliche NAS-Automatiken (WOL 19:50, Bibliotheks-Scan 01:00, Kapitelbilder 02:00, Trickplay 03:00, HDD-Ruhezustand-Zyklen) überdenken ("will nachts Ruhe") — noch kein Issue, erst nachfragen was genau stört, bevor etwas geändert wird.
 
-**Empfehlung nächste Session:** #46 zuerst (kein Blocker, bereit).
+**Empfehlung nächste Session:** #49-Restschritte mit Ruben verifizieren (Mirrored-Modus aktiv? Immich-Backup vom Handy erreichbar?), danach #46 (kein Blocker, bereit).
