@@ -1,9 +1,7 @@
-# Handover — xoro-epg-enricher (2026-09-23, Session-Ende)
+# Handover — xoro-epg-enricher (2026-09-26, Session-Ende)
 
-**#49/#50/#51 (Immich→Jellyfin) — komplett fertig, live im Einsatz.** Immich läuft PC-seitig (WSL2, nativer Docker, RAM-Limits gesetzt nach Anfangsspitze). `scripts/immich_jellyfin_bridge.py --all` synct alle 7 Immich-Alben zu Jellyfin-Collections, Windows Task Scheduler täglich 18:00 mit Nachhol-Funktion. Nebenbei behoben: Komo-Jellyfin-Nutzer war fälschlich Admin (jetzt korrekt eingeschränkt). Details: `[[project_immich_setup_2026-09-23]]`.
+**#52 (neu) — Root Cause gefunden, einmalig behoben:** Bibliotheks-Scan bricht komplett ab, sobald Buffalo-Linkstation kurz "Host is down" wirft — egal ob per API oder Jellyfin-UI ausgelöst (im Log verifiziert). Deshalb wurden "Leon, der Profi" + "Das fünfte Element" nicht erkannt, obwohl vollständig unter `/volume1/1/Filme` vorhanden. Manueller Scan bei erreichbarer Buffalo-Mount heute 19:17 Uhr erfolgreich abgeschlossen, beide Filme jetzt in Jellyfin. Strukturelles Problem bleibt offen (Issue #52, keine Lösung umgesetzt).
 
-**OFFEN, noch nicht angegangen: Nachtruhe-Wunsch.** Ruben will nachts (ab ca. 22 Uhr, Router-Abschaltung) nichts Aktives am/über den PC oder im Netz haben. Betrifft potenziell die bestehenden NAS-Nacht-Tasks (WOL 19:50, Bibliotheks-Scan 01:00, Kapitelbilder 02:00, Trickplay 03:00, HDD-Ruhezustand-Zyklen). Ungeklärt: kappt die Router-Abschaltung auch die NAS-eigene Netzwerkverbindung (Heimnetz-Topologie unbekannt)? **Nächste Session: gezielt nachfragen, was genau stören soll, bevor etwas geändert wird — noch kein Issue angelegt.**
+**Weiterhin offen, unverändert seit 2026-09-23:** Nachtruhe-Wunsch (nächtliche NAS-Tasks) — erst nachfragen was genau stören soll, bevor etwas geändert wird. Portfolio-Konflikt #37 ("F: einbinden") vs. #45 ("Desktop raus") weiterhin ungeklärt.
 
-**Bestehender Portfolio-Konflikt weiterhin offen:** #37 ("F: einbinden") widerspricht #45 ("Desktop raus") — Rubens Entscheidung steht noch aus.
-
-**Empfehlung nächste Session:** Nachtruhe-Thema zuerst (s.o.), dann #46 (kein Blocker, bereit).
+**Empfehlung nächste Session:** Nachtruhe-Thema zuerst, dann Lösungsrichtung für #52 (z.B. Buffalo-Pfade in eigene Bibliothek auslagern) oder #46.
