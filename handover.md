@@ -1,11 +1,6 @@
-# Handover — xoro-epg-enricher (2026-09-27, Session-Ende)
-
-**#32/WI-3.2 Vollrollout ausgeführt:** `scripts/uriinfo_hide.py` neu (Rename + Rollback). 168/168 umbenannt, 0 Fehler. Jellyfin-DB zieht das erst beim nächtlichen 01:00-Scan nach — **noch nicht nachgemessen**.
-
-**#52-Nebenbefund behoben:** `scripts/touch_new_movie_folders.py` neu (deckt manuell hinzugefügte Filme ab). Selbstgefundener Erstlauf-Bug sofort korrigiert (Details CHANGELOG). **Automatisierung als täglicher DSM-Task noch nicht eingerichtet.**
-
-`projekt.md` aufgeräumt (war seit Juni veraltet) + #22/#29-Stand aus Issue-Kommentaren nachgezogen. **#22 geschlossen** (Root Cause bekannt, bewusst kein Fix, Upstream-Wartestellung).
-
-**Nächste Prioritäten:** (1) Nachmessung WI-3.2 nach nächtlichem Scan, dann WI-3.3 (Branch-B-Write-Pfad, größter Hebel für #32). (2) #52 strukturell lösen (Buffalo-Pfade eigene Library). (3) #29 hängt an WI-2 (Episode-TypeOptions, seit Juni unverändert) — Stand vor Wiederaufnahme neu prüfen.
-
-**Weiterhin offen:** Nachtruhe-Wunsch vs. nächtliche NAS-Tasks, Portfolio-Konflikt #37 vs. #45 — Ruben-Entscheidung ausstehend.
+# Handover — xoro-epg-enricher (2026-10-03, Session-Ende)
+**Jellyfin/Samsung-TV "Léon" (nur NAS-Einstellung, kein Repo-Code):** Samsung-App (Tizen 1.1.0) kann kein DTS, Film hat nur DTS; die Sperre vom 01.09. ließ DTS durch + ~10-GB-Remux-Cache. Auf Bernds Ja: `EnableAudioPlaybackTranscoding` (User Ruben) wieder `True`, Video bleibt `False`. Ton wird jetzt zu AAC 5.1 umgewandelt (Server sauber, 8x Echtzeit, kein OOM). Rückstellen = Audio-Feld wieder `False`.
+**Offen:** Bild fror im TV-Test einmal ein, Ursache unklar (Server-Log ohne Fehler). Bernd: "war nur das eine Mal", keine TV-Kopie gewünscht, wartet ab. Idee: Chromecast (hängt nicht am Samsung) per HDMI + VLC/SMB. Nicht auf #39 eingetragen, nichts geschlossen, Cache (8,9 GB) liegt noch — Löschen nur auf Bernds Wort.
+**Stand 27.09. unverändert:** #32/WI-3.2 Vollrollout 168/168 (Nachmessung nach 01:00-Scan fehlt); `touch_new_movie_folders.py` noch ohne DSM-Task (#52); #22 geschlossen.
+**Nächste Prioritäten:** (1) Nachmessung WI-3.2, dann WI-3.3 (größter Hebel #32). (2) #52 strukturell (Buffalo-Pfade eigene Library). (3) #29 hängt an WI-2 — Stand neu prüfen.
+**Weiterhin offen (Ruben-Entscheidung):** Nachtruhe-Wunsch vs. nächtliche NAS-Tasks; Portfolio-Konflikt #37 vs. #45.
