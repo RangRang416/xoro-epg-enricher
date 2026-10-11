@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-11] — #53 Eingangsordner-Automatik + #29-Fehlerkorrekturen
+
+### Added
+- `inbox.py`: sortiert entpackte Serien-Downloads aus `/volume1/1/Eingang` automatisch ein (`Serien/<Name>/Season NN/<Name> - SxxEyy - <deutscher Titel>.ext` + Folgen-NFO, tvshow.nfo, Poster), TVDb-Zuordnung nur wenn eindeutig (Jahr aus Dateinamen, Remakes → unklar), Jellyfin-Refresh nur dieser Serie. Probelauf ist Standard, `--apply` für echten Lauf. Reste (Scene-NFO/Sample) nach `Eingang/_Reste`, nie gelöscht; Ordner mit Videos/Archiven/Teil-Downloads werden nicht angefasst.
+- `tests/test_inbox.py` (22 Tests), `/volume1/dvb-library/inbox_run.sh` auf dem NAS (nicht im Repo, enthält Schlüssel).
+
+### Fixed (enricher.py)
+- TVDb-ID mit Vorsatz `series-NNN` (Folgen-Abfrage schlug still fehl, Serie doppelt in Jellyfin): neu `_tvdb_id()`.
+- Episoden-NFO fiel bei leerem Folgentext auf den Serien-Overview zurück (alle Folgen gleicher Text): Rückfall entfernt.
+- `best_series`: Vergleich ohne Satzzeichen, inkl. deutschem Namen/Aliasen; tvshow.nfo mit deutschem Titel/Text.
+
+### Hinweis
+- Live-Test Tulsa King (9 Folgen): ok. Opus-Review: kritische Befunde (Aufräumen, ID-Prüfung) behoben.
+- Filme: zweiter Schritt, noch nicht umgesetzt. Bestandsserien im Archiv unverändert.
+
 ## [Unreleased]
 
 ### Added

@@ -432,16 +432,20 @@ class TVDb:
             return {}
 
     def best_series(self, title: str):
-        title_lower = title.lower()
+        title_norm = _norm_name(title)
         results = self.search_series(title)
         if not results:
             return None
 
         def score(r):
-            name = (r.get('name') or '').lower()
+            # Name, deutscher Name und Aliase vergleichen — "Philip K Dicks Electric Dreams"
+            # trifft sonst nur den deutschen Namen "Philip K. Dick's Electric Dreams".
+            names = [r.get('name'), (r.get('translations') or {}).get('deu')]
+            names += list(r.get('aliases') or [])
+            norms = [_norm_name(n) for n in names if isinstance(n, str) and n]
             s = 0
-            if name == title_lower:   s += 50
-            elif title_lower in name or name in title_lower: s += 20
+            if title_norm in norms:   s += 50
+            elif any(title_norm in n or n in title_norm for n in norms if n): s += 20
             if r.get('image_url'):    s += 5
             if r.get('overview'):     s += 5
             return s
@@ -458,6 +462,27 @@ def _text(parent, tag, text):
     el = SubElement(parent, tag)
     el.text = str(text) if text is not None else ''
     return el
+
+
+def _norm_name(s: str) -> str:
+    """Vergleichsform eines Seriennamens: klein, ohne Satzzeichen/Leerzeichen."""
+    return re.sub(r'[^0-9a-z]+', '', (s or '').lower().replace('ä', 'ae').replace('ö', 'oe')
+                  .replace('ü', 'ue').replace('ß', 'ss'))
+
+
+def _tvdb_id(series: dict):
+    """Reine TVDb-Seriennummer. Die TVDb-Suche liefert in 'id' 'series-413215' (mit Vorsatz),
+    die saubere Zahl steht in 'tvdb_id' — der Vorsatz brach Episoden-Abfragen und NFOs (#29)."""
+    raw = series.get('tvdb_id') or series.get('id') or ''
+    raw = re.sub(r'^series-', '', str(raw))
+    return int(raw) if raw.isdigit() else ''
+
+
+def _series_de(series: dict):
+    """(Name, Beschreibung) bevorzugt auf Deutsch, sonst die Standardfelder der Suche."""
+    name = (series.get('translations') or {}).get('deu') or series.get('name', '')
+    overview = (series.get('overviews') or {}).get('deu') or series.get('overview', '')
+    return name, overview
 
 
 def build_movie_nfo(details: dict, channel: str = '', epg_title: str = '') -> str:
@@ -488,11 +513,12 @@ def build_episode_nfo(series: dict, season: int, episode: int,
     _text(root, 'showtitle',   series.get('name', ''))
     _text(root, 'season',      season)
     _text(root, 'episode',     episode)
-    _text(root, 'plot',        episode_overview or epg_title or series.get('overview', ''))
+    # Kein Rückfall auf den Serien-Overview: sonst bekommen alle Folgen denselben Text (#29).
+    _text(root, 'plot',        episode_overview or epg_title)
     _text(root, 'year',        (series.get('firstAired') or series.get('year', ''))[:4])
     if channel:
         _text(root, 'studio', channel)
-    tvdb_id = series.get('id') or series.get('tvdb_id', '')
+    tvdb_id = _tvdb_id(series)
     if tvdb_id:
         _text(root, 'uniqueid', tvdb_id)
     raw = tostring(root, encoding='unicode')
@@ -501,12 +527,13 @@ def build_episode_nfo(series: dict, season: int, episode: int,
 
 def build_tvshow_nfo(series: dict) -> str:
     root = Element('tvshow')
-    _text(root, 'title', series.get('name', ''))
-    _text(root, 'plot', series.get('overview', ''))
+    name, overview = _series_de(series)
+    _text(root, 'title', name)
+    _text(root, 'plot', overview)
     year = (series.get('firstAired') or series.get('year', ''))[:4]
     if year:
         _text(root, 'year', year)
-    tvdb_id = series.get('id') or series.get('tvdb_id', '')
+    tvdb_id = _tvdb_id(series)
     if tvdb_id:
         uid = SubElement(root, 'uniqueid')
         uid.set('type', 'tvdb')
@@ -747,7 +774,7 @@ def process_folder(folder: Path, tmdb, tvdb, dry_run: bool, force: bool) -> str:
         try:
             series = tvdb.best_series(series_name)
             if series:
-                ep_ov = tvdb.episode_overview(series.get('id', 0), season, episode)
+                ep_ov = tvdb.episode_overview(_tvdb_id(series) or 0, season, episode)
                 nfo_content = build_episode_nfo(series, season, episode, channel,
                                                 epg_title=title, episode_overview=ep_ov)
                 poster_url  = tvdb.poster_url(series)
@@ -1247,7 +1274,7 @@ def scan_existing_series(dest_series: Path, tvdb, dry_run: bool) -> dict:
                         stats['error'] += 1
                         continue
 
-                    ep = tvdb.episode_info(series.get('id', 0), season_num, ep_num)
+                    ep = tvdb.episode_info(_tvdb_id(series) or 0, season_num, ep_num)
                     nfo_content = build_episode_nfo(series, season_num, ep_num,
                                                    epg_title=ep.get('title', ''),
                                                    episode_overview=ep.get('overview', ''))

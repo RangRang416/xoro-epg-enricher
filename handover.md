@@ -1,4 +1,8 @@
-# Handover — xoro-epg-enricher (2026-10-03, Session-Ende)
+# Handover — xoro-epg-enricher (2026-10-11, Session-Ende)
+**#53 Eingangsordner-Automatik (neu):** `inbox.py` + Fixes in `enricher.py` (TVDb-ID-Vorsatz, Serien-Overview-Rückfall, best_series). Auf dem NAS deployed (`/volume1/dvb-library/inbox.py`, `inbox_run.sh`; Sicherung `enricher.py.bak-20261011`). Test Tulsa King 9/9 ok, in Jellyfin mit deutschen Daten. **Offen:** (1) DSM-Aufgabe für `inbox_run.sh` (braucht root/GUI, Bernd), (2) Filme als Schritt 2, (3) Bestandsserien migrieren erst nach Bernds Sichtung, (4) Wiedergabe auf Samsung-TV nach Fix erneut testen.
+**Nacht-Tasks-Fund:** Jellyfin läuft UTC → 01/02/03-Uhr-Tasks liefen nie (NAS ab ~02:20 MESZ aus). Scan jetzt 23:00 MESZ (21:00 UTC), Kapitelbilder 23:40, Trickplay 23:50; **am 25.10. (Winterzeit) verschieben sich diese um 1 h.**
+**Weiter offen:** #29 Bestandsserien (Wayward/TNG/Sopranos-NFOs mit lockdata/Serientext aus Juni-Lauf), #46, #52 (Buffalo-Scan-Abbruch; Linkstation derzeit nicht angeschlossen), #32 Nachmessung nach erstem Scan.
+
 **Jellyfin/Samsung-TV "Léon" (nur NAS-Einstellung, kein Repo-Code):** Samsung-App (Tizen 1.1.0) kann kein DTS, Film hat nur DTS; die Sperre vom 01.09. ließ DTS durch + ~10-GB-Remux-Cache. Auf Bernds Ja: `EnableAudioPlaybackTranscoding` (User Ruben) wieder `True`, Video bleibt `False`. Ton wird jetzt zu AAC 5.1 umgewandelt (Server sauber, 8x Echtzeit, kein OOM). Rückstellen = Audio-Feld wieder `False`.
 **Offen:** Bild fror im TV-Test einmal ein, Ursache unklar (Server-Log ohne Fehler). Bernd: "war nur das eine Mal", keine TV-Kopie gewünscht, wartet ab. Idee: Chromecast (hängt nicht am Samsung) per HDMI + VLC/SMB. Nicht auf #39 eingetragen, nichts geschlossen, Cache (8,9 GB) liegt noch — Löschen nur auf Bernds Wort.
 **Stand 27.09. unverändert:** #32/WI-3.2 Vollrollout 168/168 (Nachmessung nach 01:00-Scan fehlt); `touch_new_movie_folders.py` noch ohne DSM-Task (#52); #22 geschlossen.
