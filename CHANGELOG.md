@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-20] — NAS-Check: Laufwerk E: + Zeitzone (nur NAS-Einstellungen, kein Repo-Code)
+
+### Fixed
+- Laufwerk E: (Windows-PC) war seit 05.10. nicht eingebunden: Windows-Passwort geändert, `.cifs-windows-creds` noch alt (`STATUS_LOGON_FAILURE`). Bernd hat das neue Passwort selbst eingetragen; seit 20.10. 20:30 wieder eingebunden, 268 Filme von E: wieder abspielbar.
+- Jellyfin-Container auf `TZ=Europe/Berlin` (vorher UTC), Nachtaufgaben auf Ortszeit 23:00/23:40/23:50 — Zeitumstellung verschiebt sie nicht mehr.
+
+### Hinweis
+- `/volume1/docker/jellyfin/docker-compose.yml` (veraltete Kopie ohne Komo-Mounts) an die Hauptdatei angeglichen; Sicherungen `*.bak-20261020`.
+- `mount-cifs.sh` verwirft Mount-Fehler still — eine erneute Passwortänderung fällt nur über `dmesg` auf.
+
 ## [2026-10-11] — #53 Eingangsordner-Automatik + #29-Fehlerkorrekturen
 
 ### Added
