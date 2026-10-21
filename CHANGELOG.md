@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-21] — #53 Schritt 2: Filme im Eingangsordner
+
+### Added
+- `inbox.py`: Filme werden mit `--dest-movies` + `--tmdb-key` einsortiert (`Titel (Jahr)/Titel (Jahr).ext`, `movie.nfo`, `poster.jpg`, Untertitel). Nur bei eindeutigem Treffer (Jahr im Dateinamen, genau ein TMDb-Treffer mit gleichem Titel und Jahr, Akzente egal); sonst bleibt alles liegen. Ordner mit mehreren Videos werden nicht angefasst. Ohne `--dest-movies` verhält sich alles wie bisher.
+- Optional `--jellyfin-movies-path-map`: meldet den neuen Filmordner gezielt an Jellyfin.
+- 11 neue Tests (33 gesamt, alle grün). Noch nicht auf der NAS getestet (Probelauf mit "12 Monkeys" steht aus).
+
 ## [2026-10-20] — NAS-Check: Laufwerk E: + Zeitzone (nur NAS-Einstellungen, kein Repo-Code)
 
 ### Fixed
