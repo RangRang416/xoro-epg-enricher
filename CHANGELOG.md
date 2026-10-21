@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-10-21] — #53 Filme auf der NAS aktiv
+
+- Neue `inbox.py` und erweiterte `inbox_run.sh` (`--dest-movies`, `--tmdb-key`, `--jellyfin-movies-path-map`) auf der NAS eingetragen (Sicherungen `*.bak-20261021`). "12 Monkeys (1995)" probeweise einsortiert (12 GB, `movie.nfo`, `poster.jpg`, Jellyfin gezielt informiert).
+
 ## [2026-10-21] — #53 Schritt 2: Filme im Eingangsordner
 
 ### Added
