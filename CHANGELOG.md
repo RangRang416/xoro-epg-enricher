@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-10-21] — #29 Reparatur-Werkzeug für Folgen-Beschreibungen
+
+- Neu `repair_episode_nfos.py`: Folgen-NFOs mit Serientitel statt Folgentitel (1.033 von 2.674 auf der NAS) bekommen Titel und Handlung von TVDb, deutsch wenn übersetzt. Probelauf ist Standard; `--apply` braucht `--backup-dir` (alte NFOs werden gesichert). Fasst nur NFOs an, keine Videos.
+- Probelauf "Wednesday" (NAS): 16 Folgen würden repariert, alle mit deutscher Übersetzung. 6 neue Tests (39 gesamt).
+
 ## [2026-10-21] — #53 Filme auf der NAS aktiv
 
 - Neue `inbox.py` und erweiterte `inbox_run.sh` (`--dest-movies`, `--tmdb-key`, `--jellyfin-movies-path-map`) auf der NAS eingetragen (Sicherungen `*.bak-20261021`). "12 Monkeys (1995)" probeweise einsortiert (12 GB, `movie.nfo`, `poster.jpg`, Jellyfin gezielt informiert).
