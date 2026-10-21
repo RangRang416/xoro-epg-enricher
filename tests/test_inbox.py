@@ -143,5 +143,108 @@ class PickSeries(unittest.TestCase):
         self.assertIsNone(inbox.parse_episode('Show.S01E01-02.German'))   # unsicher -> bleibt liegen
 
 
+class Movies(unittest.TestCase):
+    class FakeTmdb:
+        def __init__(self, results):
+            self.results = results
+            self.asked = []
+
+        def search_movie(self, title, year=None):
+            self.asked.append((title, year))
+            return self.results
+
+        def movie_details(self, i):
+            return {'id': i, 'title': 'Leon - Der Profi', 'original_title': 'Léon', 'release_date': '1994-09-14',
+                    'overview': 'Text', 'genres': []}
+
+        def poster_url(self, d):
+            return None
+
+    LEON = {'id': 101, 'title': 'Leon - Der Profi', 'original_title': 'Léon', 'release_date': '1994-09-14'}
+
+    def test_unique(self):
+        self.assertEqual(inbox.pick_movie(self.FakeTmdb([self.LEON]), 'Leon Der Profi', '1994')[0]['id'], 101)
+
+    def test_original_title_matches(self):
+        self.assertEqual(inbox.pick_movie(self.FakeTmdb([self.LEON]), 'Leon', '1994')[0]['id'], 101)
+
+    def test_no_year_is_unsure(self):
+        self.assertIsNone(inbox.pick_movie(self.FakeTmdb([self.LEON]), 'Leon Der Profi', '')[0])
+
+    def test_wrong_year_is_unsure(self):
+        self.assertIsNone(inbox.pick_movie(self.FakeTmdb([self.LEON]), 'Leon Der Profi', '1995')[0])
+
+    def test_remake_two_hits_same_year_unsure(self):
+        r = [self.LEON, dict(self.LEON, id=102)]
+        self.assertIsNone(inbox.pick_movie(self.FakeTmdb(r), 'Leon Der Profi', '1994')[0])
+
+    def test_different_title_unsure(self):
+        self.assertIsNone(inbox.pick_movie(self.FakeTmdb([dict(self.LEON, title='Anderer', original_title='Other')]),
+                                           'Leon Der Profi', '1994')[0])
+
+    def _setup(self, tmdb, with_movies=True, files=None):
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        ib, mv = tmp / 'Eingang', tmp / 'Filme'
+        ib.mkdir(); mv.mkdir()
+        for f in (files or ['Leon.der.Profi.1994.German.DL.1080p.BluRay.x264-GRP/leon.mkv']):
+            p = ib / f
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b'x')
+        ctx = {'inbox': ib, 'movies_root': mv if with_movies else None, 'tmdb': tmdb, 'movie_cache': {},
+               'apply': True, 'touched_movies': set(), 'release_dirs': set(),
+               'log': open(tmp / 'log.jsonl', 'w')}
+        stats = {'einsortiert': 0, 'geplant': 0, 'vorhanden': 0, 'unklar': 0}
+        return ib, mv, ctx, stats
+
+    def test_moves_movie(self):
+        ib, mv, ctx, stats = self._setup(self.FakeTmdb([self.LEON]))
+        orig = inbox.MIN_VIDEO_BYTES
+        inbox.MIN_VIDEO_BYTES = 1
+        try:
+            v = next(inbox.find_videos(ib))
+            inbox.process_movie(v, ctx, stats)
+        finally:
+            inbox.MIN_VIDEO_BYTES = orig
+        self.assertEqual(stats['einsortiert'], 1)
+        self.assertTrue((mv / 'Leon - Der Profi (1994)' / 'Leon - Der Profi (1994).mkv').exists())
+        self.assertTrue((mv / 'Leon - Der Profi (1994)' / 'movie.nfo').exists())
+
+    def test_without_dest_movies_stays(self):
+        ib, mv, ctx, stats = self._setup(self.FakeTmdb([self.LEON]), with_movies=False)
+        v = next(inbox.find_videos(ib))
+        inbox.process_movie(v, ctx, stats)
+        self.assertEqual(stats['unklar'], 1)
+        self.assertTrue(v.exists())
+
+    def test_dry_run_changes_nothing(self):
+        ib, mv, ctx, stats = self._setup(self.FakeTmdb([self.LEON]))
+        ctx['apply'] = False
+        v = next(inbox.find_videos(ib))
+        inbox.process_movie(v, ctx, stats)
+        self.assertEqual(stats['geplant'], 1)
+        self.assertTrue(v.exists())
+        self.assertEqual(list(mv.iterdir()), [])
+
+    def test_existing_target_not_overwritten(self):
+        ib, mv, ctx, stats = self._setup(self.FakeTmdb([self.LEON]))
+        (mv / 'Leon - Der Profi (1994)').mkdir()
+        v = next(inbox.find_videos(ib))
+        inbox.process_movie(v, ctx, stats)
+        self.assertEqual(stats['vorhanden'], 1)
+        self.assertTrue(v.exists())
+
+    def test_two_videos_in_folder_stay(self):
+        ib, mv, ctx, stats = self._setup(self.FakeTmdb([self.LEON]),
+                                         files=['Pack/a.1994.mkv', 'Pack/b.1995.mkv'])
+        orig = inbox.MIN_VIDEO_BYTES
+        inbox.MIN_VIDEO_BYTES = 1
+        try:
+            inbox.process_movie(sorted(inbox.find_videos(ib))[0], ctx, stats)
+        finally:
+            inbox.MIN_VIDEO_BYTES = orig
+        self.assertEqual(stats['unklar'], 1)
+
+
 if __name__ == '__main__':
     unittest.main()

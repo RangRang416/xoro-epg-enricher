@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
 Eingangsordner-Automatik (#53): Downloads aus dem Eingangsordner automatisch in die
-Jellyfin-Serienbibliothek einsortieren (Serien; Filme folgen als zweiter Schritt).
+Jellyfin-Bibliothek einsortieren (Serien; Filme nur mit --dest-movies).
 
   Eingang/<beliebige Struktur>/Tulsa.King.S01E01.<Titel>...mkv
     -> Serien/Tulsa King/Season 01/Tulsa King - S01E01 - <deutscher Titel>.mkv  (+ .nfo)
+  Eingang/Leon.der.Profi.1994.German.DL.1080p.BluRay.x264-GRP/<Datei>.mkv
+    -> Filme/Leon - Der Profi (1994)/Leon - Der Profi (1994).mkv  (+ movie.nfo, poster.jpg)
+  Filme nur bei eindeutigem Treffer (Titel UND Jahr passen, genau ein Treffer); sonst bleibt alles liegen.
 
 Standard ist Probelauf (nichts wird verändert). Echter Lauf nur mit --apply.
 Nutzt TVDb/Jellyfin-Helfer aus enricher.py (muss im selben Ordner liegen). Nur Python-stdlib.
@@ -17,6 +20,7 @@ import re
 import shutil
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -185,14 +189,122 @@ def jellyfin_refresh_series(url: str, key: str, container_path: str, name: str, 
         return False
 
 
+# ── Filme ─────────────────────────────────────────────────────────────────────
+
+def _fold(s: str) -> str:
+    """Vergleichsform für Filmtitel: Akzente entfernen (Léon = Leon), dann wie bei Serien."""
+    s = unicodedata.normalize('NFKD', s or '')
+    return E._norm_name(''.join(c for c in s if not unicodedata.combining(c)))
+
+
+def pick_movie(tmdb, title: str, year: str):
+    """TMDb-Film nur wählen, wenn eindeutig. Gibt (Film, Grund) zurück; Film=None bei Unsicherheit.
+
+    Eindeutig = Jahr steht im Release-Namen UND genau ein Treffer mit diesem Jahr, dessen deutscher oder
+    Originaltitel dem Namen entspricht (ohne Satzzeichen). Ohne Jahr oder bei mehreren Treffern: unsicher.
+    """
+    if not year:
+        return None, 'Jahr im Dateinamen fehlt'
+    g = _fold(title)
+    results = tmdb.search_movie(title, year)
+    exact = [r for r in results
+             if str(r.get('release_date', ''))[:4] == str(year)
+             and g in {_fold(r.get('title')), _fold(r.get('original_title'))}]
+    if not exact:
+        return None, f'kein Treffer mit gleichem Titel und Jahr {year}'
+    if len(exact) > 1:
+        return None, 'mehrere Filme mit diesem Titel und Jahr'
+    return exact[0], ''
+
+
+def process_movie(video: Path, ctx: dict, stats: dict):
+    """Film aus dem Eingang einsortieren. Unsicheres bleibt liegen."""
+    movies_root, tmdb = ctx.get('movies_root'), ctx.get('tmdb')
+    if not movies_root:
+        print(f'[?] Kein SxxExx erkannt (Film oder unklar, bleibt liegen): {video.name}')
+        stats['unklar'] += 1
+        return
+    # Ordner mit mehreren Videos (CD1/CD2, Sammlung) nicht anfassen
+    siblings = [v for v in video.parent.iterdir()
+                if v.is_file() and v.suffix.lower() in E.VIDEO_EXTS and v.stat().st_size >= MIN_VIDEO_BYTES]
+    if len(siblings) > 1 and video.parent != ctx['inbox']:
+        print(f'[?] Mehrere Videos im Ordner (Film-Sammlung oder Teile?) — bleibt liegen: {video.name}')
+        stats['unklar'] += 1
+        return
+    title, year = E.parse_folder_title(video.stem)
+    if not year and video.parent != ctx['inbox']:
+        title, year = E.parse_folder_title(video.parent.name)
+    if not title:
+        print(f'[?] Kein Filmtitel erkennbar — bleibt liegen: {video.name}')
+        stats['unklar'] += 1
+        return
+    key = (E._norm_name(title), year)
+    if key not in ctx['movie_cache']:
+        try:
+            ctx['movie_cache'][key] = pick_movie(tmdb, title, year) if tmdb else (None, 'kein TMDb-Zugang')
+        except Exception as e:
+            ctx['movie_cache'][key] = (None, f'TMDb-Fehler: {e}')
+    movie, why = ctx['movie_cache'][key]
+    if not movie:
+        print(f'[?] Film "{title}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
+        stats['unklar'] += 1
+        return
+
+    name = sanitize(f"{movie.get('title') or title} ({str(movie.get('release_date', ''))[:4]})")
+    dest_dir = movies_root / name
+    dest = dest_dir / f'{name}{video.suffix.lower()}'
+    print(f'{"[Probelauf] " if not ctx["apply"] else ""}{video.name}\n    -> Film: {dest.relative_to(movies_root)}')
+    if dest_dir.exists():
+        print('    [übersprungen] Zielordner existiert schon')
+        stats['vorhanden'] += 1
+        return
+    if not ctx['apply']:
+        stats['geplant'] += 1
+        return
+
+    details = tmdb.movie_details(movie['id'])
+    dest_dir.mkdir(parents=True)
+    shutil.move(str(video), str(dest))
+    E._touch_now(dest)
+    try:
+        (dest_dir / 'movie.nfo').write_text(E.build_movie_nfo(details), encoding='utf-8')
+        poster = tmdb.poster_url(details)
+        if poster:
+            (dest_dir / 'poster.jpg').write_bytes(E.http_get_bytes(poster))
+        for sub in sorted(video.parent.iterdir()) if video.parent.exists() else []:
+            if sub.is_file() and sub.suffix.lower() in SUB_EXTS and sub.name.startswith(video.stem):
+                target = dest_dir / f'{name}{sub.name[len(video.stem):]}'
+                if not target.exists():
+                    shutil.move(str(sub), str(target))
+    except Exception as e:
+        print(f'    Warnung (Film ist einsortiert): NFO/Poster/Untertitel: {e}')
+
+    stats['einsortiert'] += 1
+    ctx['touched_movies'].add(dest_dir)
+    ctx['log'].write(json.dumps({'ts': time.strftime('%Y-%m-%dT%H:%M:%S'), 'von': str(video), 'nach': str(dest),
+                                 'tmdb_id': movie['id']}, ensure_ascii=False) + '\n')
+    ctx['log'].flush()
+    if video.parent != ctx['inbox']:
+        ctx['release_dirs'].add(video.parent)
+
+
+def jellyfin_notify_movie(url: str, key: str, container_path: str) -> bool:
+    """Meldet Jellyfin den neuen Filmordner (kein Voll-Scan)."""
+    try:
+        _jf(url, key, '/Library/Media/Updated', 'POST', {'Updates': [{'Path': container_path, 'UpdateType': 'Created'}]})
+        return True
+    except Exception as e:
+        print(f'  Jellyfin-Meldung fehlgeschlagen: {e}')
+        return False
+
+
 # ── Kern ──────────────────────────────────────────────────────────────────────
 
 def process_video(video: Path, ctx: dict, stats: dict):
     stem = video.stem
     parsed = parse_episode(stem) or parse_episode(video.parent.name)
     if not parsed:
-        print(f'[?] Kein SxxExx erkannt (Film oder unklar, bleibt liegen): {video.name}')
-        stats['unklar'] += 1
+        process_movie(video, ctx, stats)
         return
     show_guess, season, eps, token = parsed
     if not show_guess:   # z. B. Dateiname nur 'S01E01.mkv' -> Ordnername probieren
@@ -370,6 +482,9 @@ def main():
     ap.add_argument('--inbox', required=True, help='Eingangsordner, z. B. /volume1/1/Eingang')
     ap.add_argument('--dest-series', required=True, help='Serienbibliothek, z. B. /volume1/1/Serien')
     ap.add_argument('--tvdb-key', required=True)
+    ap.add_argument('--dest-movies', help='Filmbibliothek, z. B. /volume1/1/Filme (ohne: Filme bleiben im Eingang liegen)')
+    ap.add_argument('--tmdb-key', help='TMDb-Schlüssel (nötig für --dest-movies)')
+    ap.add_argument('--jellyfin-movies-path-map', help='NAS-Pfad=Container-Pfad für Filme, z. B. /volume1/1/Filme=/movies')
     ap.add_argument('--apply', action='store_true', help='Wirklich ausführen (ohne: Probelauf)')
     ap.add_argument('--min-age', type=int, default=300, help='Sekunden seit letzter Änderung, bevor eine Datei als fertig gilt')
     ap.add_argument('--jellyfin-url')
@@ -380,9 +495,12 @@ def main():
     a = ap.parse_args()
 
     inbox, series_root = Path(a.inbox), Path(a.dest_series)
-    for p in (inbox, series_root):
-        if not p.is_dir():
+    movies_root = Path(a.dest_movies) if a.dest_movies else None
+    for p in (inbox, series_root, movies_root):
+        if p is not None and not p.is_dir():
             sys.exit(f'Ordner nicht gefunden: {p}')
+    if movies_root and not a.tmdb_key:
+        sys.exit('--dest-movies braucht --tmdb-key')
 
     lock = open(a.lock, 'w')
     try:
@@ -390,8 +508,9 @@ def main():
     except OSError:
         sys.exit('Läuft bereits (Sperrdatei) — beende.')
 
-    ctx = {'series_root': series_root, 'tvdb': E.TVDb(a.tvdb_key), 'cache': {}, 'apply': a.apply,
-           'touched': set(), 'release_dirs': set(), 'min_age': a.min_age, 'log': open(a.log, 'a', encoding='utf-8')}
+    ctx = {'inbox': inbox, 'series_root': series_root, 'tvdb': E.TVDb(a.tvdb_key), 'cache': {}, 'apply': a.apply,
+           'movies_root': movies_root, 'tmdb': E.TMDb(a.tmdb_key) if movies_root else None,
+           'movie_cache': {}, 'touched_movies': set(), 'touched': set(), 'release_dirs': set(), 'min_age': a.min_age, 'log': open(a.log, 'a', encoding='utf-8')}
     stats = {'einsortiert': 0, 'geplant': 0, 'vorhanden': 0, 'unklar': 0, 'noch_nicht_fertig': 0, 'fehler': 0}
 
     for video in find_videos(inbox):
@@ -413,6 +532,12 @@ def main():
                 jp = str(show).replace(src, dst, 1)
                 ok = jellyfin_refresh_series(a.jellyfin_url, a.jellyfin_key, jp, show.name)
                 print(f'Jellyfin informiert ({jp}): {"ok" if ok else "FEHLGESCHLAGEN"}')
+    if a.apply and a.jellyfin_url and a.jellyfin_key and a.jellyfin_movies_path_map and ctx['touched_movies']:
+        src, dst = a.jellyfin_movies_path_map.split('=', 1)
+        for d in sorted(ctx['touched_movies']):
+            jp = str(d).replace(src, dst, 1)
+            ok = jellyfin_notify_movie(a.jellyfin_url, a.jellyfin_key, jp)
+            print(f'Jellyfin informiert ({jp}): {"ok" if ok else "FEHLGESCHLAGEN"}')
     print('\nErgebnis:', ', '.join(f'{k}={v}' for k, v in stats.items()))
 
 
