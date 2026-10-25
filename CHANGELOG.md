@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-25] — Wächter für Laufwerk E: (Healthchecks.io)
+
+### Added
+- `scripts/e_waechter.sh`: meldet an Healthchecks.io, wenn der PC erreichbar ist (Port 445), Laufwerk E: aber ≥ 15 Min fehlt oder hängt; `/fail`-Ping enthält den Kernel-Grund des letzten PC-Mount-Versuchs (z. B. `STATUS_LOGON_FAILURE` = Windows-Passwort geändert). PC aus oder E: ok → Erfolg-Ping. Ohne Ping-Adresse sendet es nichts.
+- Auf der NAS: `/volume1/dvb-library/e_waechter.sh`, Aufruf am Ende von `mount-cifs.sh` (alle 5 Min., root; Sicherung `mount-cifs.sh.bak-20261025`). Ping-Adresse gehört nach `/volume1/dvb-library/.e-waechter.conf` (`HC_URL=…`), nie ins Repo.
+- Getestet im Probemodus (`E_WAECHTER_DRYRUN=1`) lokal und auf der NAS: PC aus, E: ok, E: fehlt frisch, E: fehlt > 15 Min, wieder ok.
+
 ## [2026-10-25] — #53/#29 Bestandsserien: Reparatur mit tinyMediaManager PRO (TVDB)
 
 ### Added
