@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-10-25] — #53/#29 Bestandsserien: Reparatur mit tinyMediaManager PRO (TVDB)
+
+### Added
+- `scripts/bestand_tmm.py` (`plan` / `apply` je Serie): tinyMediaManager arbeitet nie direkt auf der NAS, sondern in einer Sandbox mit Platzhalter-Videos; `apply` schiebt den alten Serienordner komplett in die Quarantäne (`Eingang/_Reste/Bestand-<Datum>/`, nichts wird gelöscht), legt die Folgen in `Serie/Season NN/Serie - SxxEyy - Titel.ext` zurück, benennt Untertitel passend (`….de.forced.idx`) und lädt die neuen NFOs/Bilder hoch. Vor dem Verschieben: Plan-Abgleich mit dem aktuellen Ordnerinhalt, Prüfung aller Quellen/Ziele, `UNDO.sh` auf der NAS neben der Quarantäne. Sperren u. a. bei anderer TVDB-ID, doppelten Zielpfaden, großen nicht übernommenen Dateien.
+- Opus-Review (Befunde: falsche Rückgängig-Anleitung, fehlende Vorabprüfung, Wiederholschutz, Sample-Regel, Namenskollisionen) vollständig umgesetzt; Apply + UNDO lokal nachgebildet (Hash-Vergleich vor/nach UNDO, Wayward + Wednesday).
+
+### Changed (Werkzeug, nicht im Repo)
+- tinyMediaManager 5.3.4 PRO (Lizenz 25.10.2026–25.10.2027, lokal in `~/.local/share/tinyMediaManager/data/tmm.lic`, nie ins Repo), Jellyfin-Preset (`TvShowSettingsDefaults.setDefaultSettingsForJellyfin`), TheTVDB als Scraper, Sprache de, `Season ${seasonNr2}`.
+
+### Migriert (echt auf der NAS)
+- Wayward.Unberechenbar → "Wayward – Unberechenbar" (8 Folgen, TVDB 433309, in Jellyfin geprüft).
+- Wednesday (16 Folgen, 50 Untertitel, Ordnername unverändert).
+
+### Hinweis
+- Warum nicht `enricher.py --scan-existing`: überspringt NFOs mit vorhandenem Text (die falschen Altlast-NFOs enthalten den englischen Serien-Overview) und braucht Season-Ordner.
+- Ohne PRO-Lizenz scrapt tinyMediaManager nur über TMDb (Nummerierung weicht bei alten Serien von TVDB ab).
+- Noch offen: übrige ~50 Serien (Sopranos, Star Trek, Bonanza/Waltons lose …), Bestandsfilme (gleiches Problem).
+
 ## [2026-10-21] — #53 Filme auf der NAS aktiv
 
 - Neue `inbox.py` und erweiterte `inbox_run.sh` (`--dest-movies`, `--tmdb-key`, `--jellyfin-movies-path-map`) auf der NAS eingetragen (Sicherungen `*.bak-20261021`). "12 Monkeys (1995)" probeweise einsortiert (12 GB, `movie.nfo`, `poster.jpg`, Jellyfin gezielt informiert).
