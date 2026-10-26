@@ -58,6 +58,18 @@ def parse_episode(name: str):
     return show, int(m.group(1)), eps, m.group(0).upper()
 
 
+_GROUP_PREFIX_RE = re.compile(r'^[A-Za-z0-9]{2,20}-(?=\S)(.+)$')
+
+
+def strip_group_prefix(show: str):
+    """'jajunge-the big bang theory' -> 'the big bang theory' (Scene-Dateiname 'gruppe-serie.sXXeYY'); sonst ''.
+
+    Nur wenn der Teil vor dem ersten '-' ein einzelnes Wort ist (kein Leerzeichen): 'Star Trek - Enterprise'
+    bleibt unberührt. Der Aufrufer nimmt das Ergebnis nur, wenn die Serie damit EINDEUTIG gefunden wird."""
+    m = _GROUP_PREFIX_RE.match(show or '')
+    return m.group(1).strip() if m and ' ' not in show.split('-', 1)[0] else ''
+
+
 def year_hint(name: str):
     """Jahr VOR dem SxxExx-Teil (z. B. 'Doctor.Who.2005.S01E01' -> 2005), sonst None."""
     m = _SXXEYY_RE.search(name)
@@ -323,10 +335,20 @@ def process_video(video: Path, ctx: dict, stats: dict):
     tvdb = ctx['tvdb']
 
     # Serie bestimmen (eindeutig oder gar nicht), dann Zielordner mit ID-Prüfung
-    key = (E._norm_name(show_guess), year_hint(stem) or year_hint(video.parent.name))
-    if key not in ctx['cache']:
-        ctx['cache'][key] = pick_series(tvdb, show_guess, key[1]) if tvdb else (None, 'kein TVDb-Zugang')
-    series, why = ctx['cache'][key]
+    year = year_hint(stem) or year_hint(video.parent.name)
+
+    def lookup(guess):
+        k = (E._norm_name(guess), year)
+        if k not in ctx['cache']:
+            ctx['cache'][k] = pick_series(tvdb, guess, year) if tvdb else (None, 'kein TVDb-Zugang')
+        return ctx['cache'][k]
+
+    series, why = lookup(show_guess)
+    alt = strip_group_prefix(show_guess)
+    if not series and alt:    # 'jajunge-the big bang theory': Release-Gruppe vor dem Serienname -> ohne sie noch einmal
+        series, why2 = lookup(alt)
+        if series:
+            show_guess = alt
     if not series:
         print(f'[?] "{show_guess}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
         stats['unklar'] += 1

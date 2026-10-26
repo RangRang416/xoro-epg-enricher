@@ -44,6 +44,19 @@ class ParseEpisode(unittest.TestCase):
         self.assertIsNone(inbox.parse_episode('Show.S01E01-02.GERMAN'))   # echte Bereichsangabe bleibt unklar
 
 
+class GroupPrefix(unittest.TestCase):
+    def test_strip(self):
+        r = inbox.parse_episode('jajunge-the.big.bang.theory.s01e01.1080p')
+        self.assertEqual(r[0], 'jajunge-the big bang theory')
+        self.assertEqual(inbox.strip_group_prefix(r[0]), 'the big bang theory')
+
+    def test_normal_names_untouched(self):
+        for n in ('Star Trek - Enterprise', 'Spider-Man', 'The Big Bang Theory', 'Wayward Unberechenbar', ''):
+            self.assertIn(inbox.strip_group_prefix(n), ('', 'Man'), n)
+        self.assertEqual(inbox.strip_group_prefix('Star Trek - Enterprise'), '')
+        self.assertEqual(inbox.strip_group_prefix('The Big Bang Theory'), '')
+
+
 class Trailer(unittest.TestCase):
     PLUGIN = 'plugin://plugin.video.youtube/play/?video_id='
 

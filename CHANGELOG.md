@@ -5,6 +5,10 @@
 ### Added (Trailer)
 - Neue Serien aus dem Eingang bekommen in der `tvshow.nfo` einen `<trailer>` (YouTube, Jellyfin zeigt dann den Trailer-Knopf, wie bei tinyMediaManager). Quelle: TheTVDB `series/<id>/extended` → `trailers`, Deutsch vor Englisch vor anderen Sprachen, nur YouTube (`enricher.youtube_trailer_tag`, `build_tvshow_nfo(series, trailer)`). Fehlt der Trailer oder schlägt die Abfrage fehl, wird trotzdem normal einsortiert. 3 Tests (54 gesamt). Filme: noch offen (TMDb `/movie/<id>/videos`).
 
+### Fixed (Echttest "The Big Bang Theory", 2026-10-26)
+- Scene-Dateinamen mit Release-Gruppe vorn (`jajunge-the.big.bang.theory.s01e01.1080p.mkv`) wurden als Serie "jajunge-the big bang theory" gesucht und blieben liegen. `strip_group_prefix`: findet TVDb den Namen nicht, wird es noch einmal ohne das Gruppenwort vor dem ersten `-` versucht (nur bei eindeutigem Treffer; 'Star Trek - Enterprise' bleibt unberührt). 68 Tests.
+- Deployt auf die NAS (`/volume1/dvb-library/`, Sicherung `*.bak-20261026`). Die geplante DSM-Aufgabe (stündlich, root) hat 4 Folgen selbständig einsortiert, Jellyfin zeigt sie mit deutschen Titeln. `unpack.py` liegt dort, ist aber AUS (`--unpack` fehlt in `inbox_run.sh`).
+
 ### Changed (Opus-Review `unpack.py`, 2026-10-26)
 - Inhaltsverzeichnis jetzt mit `unrar lt -v -c-` (ohne `-idq`, sonst leer — auf der NAS bestätigt) und Prüfung, dass genau so viele `Archive:`-Blöcke kommen wie Teile da sind (sonst würde ein Link in Teil 2 nicht geprüft). Nur an `\n` trennen (nicht `splitlines`, Zeilenumbruch im Namen konnte den Typ fälschen), je Eintrag genau ein `Type`, kein `Target`, keine Steuerzeichen, keine doppelten Dateinamen.
 - Nach dem Auspacken `lstat` jedes Eintrags (nur normale Dateien), `-ai`, Speicherdeckel 700 MB, kein stdin, Plausibilität (entpackt ≤ 1,5 × gepackt) und Platz + 5 GB Reserve anhand der echten Größen.
