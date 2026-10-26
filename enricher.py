@@ -525,7 +525,24 @@ def build_episode_nfo(series: dict, season: int, episode: int,
     return parseString(f'<?xml version="1.0" encoding="UTF-8"?>{raw}').toprettyxml(indent='  ', encoding=None)
 
 
-def build_tvshow_nfo(series: dict) -> str:
+_YT_ID_RE = re.compile(r'(?:youtube\.com/(?:watch\?(?:[^#]*&)?v=|embed/|shorts/)|youtu\.be/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])')
+
+
+def youtube_trailer_tag(trailers) -> str:
+    """Aus der TVDb-Trailerliste (`series/<id>/extended` -> 'trailers') die Jellyfin-Adresse eines YouTube-Trailers.
+
+    Deutsch vor Englisch vor allem anderen; nur YouTube (andere Seiten kann Jellyfin nicht abspielen).
+    Format wie bei tinyMediaManager: plugin://plugin.video.youtube/play/?video_id=<ID>. Sonst ''."""
+    def rank(t):
+        return {'deu': 0, 'eng': 1}.get((t.get('language') or '').lower(), 2)
+    for t in sorted((t for t in (trailers or []) if isinstance(t, dict)), key=rank):
+        m = _YT_ID_RE.search(t.get('url') or '')
+        if m:
+            return f'plugin://plugin.video.youtube/play/?video_id={m.group(1)}'
+    return ''
+
+
+def build_tvshow_nfo(series: dict, trailer: str = '') -> str:
     root = Element('tvshow')
     name, overview = _series_de(series)
     _text(root, 'title', name)
@@ -533,6 +550,8 @@ def build_tvshow_nfo(series: dict) -> str:
     year = (series.get('firstAired') or series.get('year', ''))[:4]
     if year:
         _text(root, 'year', year)
+    if trailer:
+        _text(root, 'trailer', trailer)
     tvdb_id = _tvdb_id(series)
     if tvdb_id:
         uid = SubElement(root, 'uniqueid')

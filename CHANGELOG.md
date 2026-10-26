@@ -2,6 +2,9 @@
 
 ## [2026-10-26] — #53 inbox.py: Auflösung hinter SxxExx stört die Erkennung nicht mehr
 
+### Added (Trailer)
+- Neue Serien aus dem Eingang bekommen in der `tvshow.nfo` einen `<trailer>` (YouTube, Jellyfin zeigt dann den Trailer-Knopf, wie bei tinyMediaManager). Quelle: TheTVDB `series/<id>/extended` → `trailers`, Deutsch vor Englisch vor anderen Sprachen, nur YouTube (`enricher.youtube_trailer_tag`, `build_tvshow_nfo(series, trailer)`). Fehlt der Trailer oder schlägt die Abfrage fehl, wird trotzdem normal einsortiert. 3 Tests (54 gesamt). Filme: noch offen (TMDb `/movie/<id>/videos`).
+
 ### Added
 - `unpack.py` (Notlösung, standardmäßig AUS): packt vollständige mehrteilige RAR-Pakete im Eingang aus, die JDownloader nicht selbst ausgepackt hat. Nur mit `inbox.py --unpack`; Pakete müssen ≥ 24 h unverändert liegen (JDownloader hat Vortritt). Sicherheit: nur vollständige Pakete, Inhaltsverzeichnis wird vorher geprüft (nur Dateien/Ordner, keine Verknüpfungen/`..`/absolute Pfade, sonst Abbruch), flaches Auspacken in Temp-Ordner mit `nice`/`ionice`, höchstens 3 Pakete pro Lauf, mind. doppelter Platz frei. Archive werden nie gelöscht, sondern nach `_Reste/Archive-<Datum>/` verschoben. 17 Tests (`tests/test_unpack.py`).
 

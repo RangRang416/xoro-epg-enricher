@@ -44,6 +44,29 @@ class ParseEpisode(unittest.TestCase):
         self.assertIsNone(inbox.parse_episode('Show.S01E01-02.GERMAN'))   # echte Bereichsangabe bleibt unklar
 
 
+class Trailer(unittest.TestCase):
+    PLUGIN = 'plugin://plugin.video.youtube/play/?video_id='
+
+    def test_german_before_english_before_other(self):
+        tr = [{'language': 'fra', 'url': 'https://www.youtube.com/watch?v=aaaaaaaaaaa'},
+              {'language': 'eng', 'url': 'https://www.youtube.com/watch?v=bbbbbbbbbbb'},
+              {'language': 'deu', 'url': 'https://youtu.be/ccccccccccc'}]
+        self.assertEqual(E.youtube_trailer_tag(tr), self.PLUGIN + 'ccccccccccc')
+        self.assertEqual(E.youtube_trailer_tag(tr[:2]), self.PLUGIN + 'bbbbbbbbbbb')
+
+    def test_only_youtube_and_robust(self):
+        self.assertEqual(E.youtube_trailer_tag([{'language': 'deu', 'url': 'https://vimeo.com/123456'}]), '')
+        self.assertEqual(E.youtube_trailer_tag([{'url': 'https://www.youtube.com/embed/9briFc-xzdE?x=1'}]),
+                         self.PLUGIN + '9briFc-xzdE')
+        for bad in (None, [], [None, 'x', {}], [{'url': None}], [{'url': 'https://www.youtube.com/watch?v=zu_kurz'}]):
+            self.assertEqual(E.youtube_trailer_tag(bad), '')
+
+    def test_tvshow_nfo_has_trailer_only_when_given(self):
+        s = {'name': 'X', 'id': 'series-1'}
+        self.assertIn(f'<trailer>{self.PLUGIN}abcdefghijk</trailer>', E.build_tvshow_nfo(s, self.PLUGIN + 'abcdefghijk'))
+        self.assertNotIn('<trailer>', E.build_tvshow_nfo(s))
+
+
 class Helpers(unittest.TestCase):
     def test_tvdb_id_prefix(self):
         self.assertEqual(E._tvdb_id({'id': 'series-413215', 'tvdb_id': '413215'}), 413215)

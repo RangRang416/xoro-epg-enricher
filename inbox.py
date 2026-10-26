@@ -370,7 +370,12 @@ def process_video(video: Path, ctx: dict, stats: dict):
     # tvshow.nfo + Poster einmalig pro Serie
     tvshow_nfo = target_show / 'tvshow.nfo'
     if not tvshow_nfo.exists():
-        tvshow_nfo.write_text(E.build_tvshow_nfo(series), encoding='utf-8')
+        trailer = ''
+        try:   # Trailer-Knopf in Jellyfin (wie bei tinyMediaManager); fehlt er, ist das kein Grund zum Abbruch
+            trailer = E.youtube_trailer_tag((tvdb.series_details(tvdb_id) or {}).get('trailers')) if tvdb and tvdb_id else ''
+        except Exception as e:
+            print(f'    Trailer nicht ermittelt: {e}')
+        tvshow_nfo.write_text(E.build_tvshow_nfo(series, trailer), encoding='utf-8')
         img = series.get('image_url') or series.get('thumbnail')
         if img and not (target_show / 'poster.jpg').exists():
             try:
