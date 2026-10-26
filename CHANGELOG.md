@@ -2,6 +2,9 @@
 
 ## [2026-10-26] — #53 inbox.py: Auflösung hinter SxxExx stört die Erkennung nicht mehr
 
+### Added
+- `unpack.py` (Notlösung, standardmäßig AUS): packt vollständige mehrteilige RAR-Pakete im Eingang aus, die JDownloader nicht selbst ausgepackt hat. Nur mit `inbox.py --unpack`; Pakete müssen ≥ 24 h unverändert liegen (JDownloader hat Vortritt). Sicherheit: nur vollständige Pakete, Inhaltsverzeichnis wird vorher geprüft (nur Dateien/Ordner, keine Verknüpfungen/`..`/absolute Pfade, sonst Abbruch), flaches Auspacken in Temp-Ordner mit `nice`/`ionice`, höchstens 3 Pakete pro Lauf, mind. doppelter Platz frei. Archive werden nie gelöscht, sondern nach `_Reste/Archive-<Datum>/` verschoben. 17 Tests (`tests/test_unpack.py`).
+
 ### Fixed
 - `_SXXEYY_RE`: Namen wie `Wednesday.S01E01-1080p.GERMAN` wurden als mögliche Bereichsangabe verworfen und blieben im Eingang liegen. Jetzt nur noch `-02`/`_02` (1–2 Ziffern) direkt hinter der Folge als unklar; `-1080p`, `_720p` usw. sind unkritisch. Test `test_resolution_after_episode_is_not_a_range` (34 Tests grün).
 

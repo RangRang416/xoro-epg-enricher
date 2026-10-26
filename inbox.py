@@ -27,6 +27,7 @@ import urllib.request
 from pathlib import Path
 
 import enricher as E
+import unpack
 
 SUB_EXTS = {'.srt', '.ass', '.sub', '.idx'}
 PARTIAL_EXTS = {'.part', '.!ut', '.crdownload', '.tmp', '.rar', '.jdownloader'}
@@ -115,7 +116,8 @@ def find_videos(inbox: Path):
         if not p.is_file() or p.suffix.lower() not in E.VIDEO_EXTS:
             continue
         rel = p.relative_to(inbox)
-        if any(part.lower() in SKIP_DIRS or part.startswith('@') for part in rel.parts[:-1]):
+        if any(part.lower() in SKIP_DIRS or part.startswith('@') or part.startswith(unpack.TMP_PREFIX)
+               for part in rel.parts[:-1]):
             continue
         yield p
 
@@ -492,6 +494,13 @@ def main():
     ap.add_argument('--jellyfin-url')
     ap.add_argument('--jellyfin-key')
     ap.add_argument('--jellyfin-path-map', help='NAS-Pfad=Container-Pfad, z. B. /volume1/1/Serien=/bestehende-serien')
+    ap.add_argument('--unpack', action='store_true',
+                    help='Notlösung: vollständige RAR-Pakete selbst auspacken, die JDownloader nicht ausgepackt hat '
+                         '(Normalfall: JDownloader packt aus, dann ist das aus)')
+    ap.add_argument('--unpack-min-age', type=int, default=86400,
+                    help='Sekunden, die ein Paket unverändert liegen muss, bevor --unpack es anfasst (JDownloader Vortritt)')
+    ap.add_argument('--max-unpack', type=int, default=3, help='Höchstzahl Pakete pro Lauf (NAS schonen)')
+    ap.add_argument('--unrar', default='unrar')
     ap.add_argument('--log', default='inbox_sort.jsonl')
     ap.add_argument('--lock', default='/tmp/inbox_sort.lock')
     a = ap.parse_args()
@@ -514,6 +523,10 @@ def main():
            'movies_root': movies_root, 'tmdb': E.TMDb(a.tmdb_key) if movies_root else None,
            'movie_cache': {}, 'touched_movies': set(), 'touched': set(), 'release_dirs': set(), 'min_age': a.min_age, 'log': open(a.log, 'a', encoding='utf-8')}
     stats = {'einsortiert': 0, 'geplant': 0, 'vorhanden': 0, 'unklar': 0, 'noch_nicht_fertig': 0, 'fehler': 0}
+
+    if a.unpack:
+        ustats = unpack.unpack_all(inbox, a.apply, a.unpack_min_age, a.max_unpack, a.unrar)
+        print('Archive:', ', '.join(f'{k}={v}' for k, v in ustats.items()))
 
     for video in find_videos(inbox):
         if not is_finished(video, a.min_age):
