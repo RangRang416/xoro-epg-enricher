@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-10-26] — #53 inbox.py: Auflösung hinter SxxExx stört die Erkennung nicht mehr
+
+### Fixed
+- `_SXXEYY_RE`: Namen wie `Wednesday.S01E01-1080p.GERMAN` wurden als mögliche Bereichsangabe verworfen und blieben im Eingang liegen. Jetzt nur noch `-02`/`_02` (1–2 Ziffern) direkt hinter der Folge als unklar; `-1080p`, `_720p` usw. sind unkritisch. Test `test_resolution_after_episode_is_not_a_range` (34 Tests grün).
+
 ## [2026-10-25] — Wächter für Laufwerk E: (Healthchecks.io)
 
 ### Added

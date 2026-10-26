@@ -35,6 +35,14 @@ class ParseEpisode(unittest.TestCase):
         self.assertEqual(inbox.parse_episode('Show.S02E12.Titel')[2], [12])
         self.assertEqual(inbox.parse_episode('Show.S10E105.Titel')[2], [105])
 
+    def test_resolution_after_episode_is_not_a_range(self):
+        # Wednesday S01: 'S01E01-1080p' wurde fälschlich verworfen (Handover 25.10.)
+        for tail in ('-1080p', '_720p', '-2160p', '-480p'):
+            r = inbox.parse_episode(f'Wednesday.S01E01{tail}.GERMAN')
+            self.assertEqual((r[0], r[1], r[2]), ('Wednesday', 1, [1]), tail)
+        self.assertEqual(inbox.parse_episode('Show.S01E01-E02.GERMAN')[2], [1, 2])
+        self.assertIsNone(inbox.parse_episode('Show.S01E01-02.GERMAN'))   # echte Bereichsangabe bleibt unklar
+
 
 class Helpers(unittest.TestCase):
     def test_tvdb_id_prefix(self):

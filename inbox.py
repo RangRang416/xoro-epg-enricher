@@ -33,8 +33,10 @@ PARTIAL_EXTS = {'.part', '.!ut', '.crdownload', '.tmp', '.rar', '.jdownloader'}
 SKIP_DIRS = {'sample', 'subs', '@eadir', '_reste', '#recycle'}
 MIN_VIDEO_BYTES = 100 * 1024 * 1024   # kleiner = Sample/Trailer, kein Folgen-Video
 
-# S01E01, s01e01e02, S01E01-E02 — Staffel 1-2 stellig, Folge 1-3 stellig
-_SXXEYY_RE = re.compile(r'(?<![A-Za-z0-9])[Ss](\d{1,2})[Ee](\d{1,3})((?:[-_]?[Ee]\d{1,3})*)(?!\d)(?![-_]\d)')
+# S01E01, s01e01e02, S01E01-E02 — Staffel 1-2 stellig, Folge 1-3 stellig.
+# '-02' direkt dahinter (S01E01-02, Bereichsangabe) ist mehrdeutig -> kein Treffer; '-1080p'/'_720p' dahinter ist
+# nur eine Auflösung und stört nicht (sonst scheiterte z. B. Wednesday S01 an 'S01E01-1080p').
+_SXXEYY_RE = re.compile(r'(?<![A-Za-z0-9])[Ss](\d{1,2})[Ee](\d{1,3})((?:[-_]?[Ee]\d{1,3})*)(?!\d)(?![-_]\d{1,2}(?!\d))')
 _YEAR_TAIL_RE = re.compile(r'\s+(?:19|20)\d{2}$')
 
 
