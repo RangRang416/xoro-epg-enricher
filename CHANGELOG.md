@@ -5,6 +5,11 @@
 ### Added (Trailer)
 - Neue Serien aus dem Eingang bekommen in der `tvshow.nfo` einen `<trailer>` (YouTube, Jellyfin zeigt dann den Trailer-Knopf, wie bei tinyMediaManager). Quelle: TheTVDB `series/<id>/extended` → `trailers`, Deutsch vor Englisch vor anderen Sprachen, nur YouTube (`enricher.youtube_trailer_tag`, `build_tvshow_nfo(series, trailer)`). Fehlt der Trailer oder schlägt die Abfrage fehl, wird trotzdem normal einsortiert. 3 Tests (54 gesamt). Filme: noch offen (TMDb `/movie/<id>/videos`).
 
+### Changed (Opus-Review `unpack.py`, 2026-10-26)
+- Inhaltsverzeichnis jetzt mit `unrar lt -v -c-` (ohne `-idq`, sonst leer — auf der NAS bestätigt) und Prüfung, dass genau so viele `Archive:`-Blöcke kommen wie Teile da sind (sonst würde ein Link in Teil 2 nicht geprüft). Nur an `\n` trennen (nicht `splitlines`, Zeilenumbruch im Namen konnte den Typ fälschen), je Eintrag genau ein `Type`, kein `Target`, keine Steuerzeichen, keine doppelten Dateinamen.
+- Nach dem Auspacken `lstat` jedes Eintrags (nur normale Dateien), `-ai`, Speicherdeckel 700 MB, kein stdin, Plausibilität (entpackt ≤ 1,5 × gepackt) und Platz + 5 GB Reserve anhand der echten Größen.
+- Archive werden nie überschrieben (`_Reste/Archive-<Tag>/<name>[_n]`); Temp-/Zielordner neben dem Paket; Wiederaufnahme nach Abbruch; `.RAR` groß geschrieben erkannt, alte `.r00`-Benennung abgelehnt; JDownloader-Vortritt (Dateien schon da → nichts tun); Fehlschläge in `_Reste/entpacken-fehler.json` vermerkt (erst nach Änderung neuer Versuch); `--max-unpack` Standard 1. 33 Auspack-Tests (66 gesamt).
+
 ### Added
 - `unpack.py` (Notlösung, standardmäßig AUS): packt vollständige mehrteilige RAR-Pakete im Eingang aus, die JDownloader nicht selbst ausgepackt hat. Nur mit `inbox.py --unpack`; Pakete müssen ≥ 24 h unverändert liegen (JDownloader hat Vortritt). Sicherheit: nur vollständige Pakete, Inhaltsverzeichnis wird vorher geprüft (nur Dateien/Ordner, keine Verknüpfungen/`..`/absolute Pfade, sonst Abbruch), flaches Auspacken in Temp-Ordner mit `nice`/`ionice`, höchstens 3 Pakete pro Lauf, mind. doppelter Platz frei. Archive werden nie gelöscht, sondern nach `_Reste/Archive-<Datum>/` verschoben. 17 Tests (`tests/test_unpack.py`).
 

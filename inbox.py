@@ -504,7 +504,7 @@ def main():
                          '(Normalfall: JDownloader packt aus, dann ist das aus)')
     ap.add_argument('--unpack-min-age', type=int, default=86400,
                     help='Sekunden, die ein Paket unverändert liegen muss, bevor --unpack es anfasst (JDownloader Vortritt)')
-    ap.add_argument('--max-unpack', type=int, default=3, help='Höchstzahl Pakete pro Lauf (NAS schonen)')
+    ap.add_argument('--max-unpack', type=int, default=1, help='Höchstzahl Pakete pro Lauf (NAS schonen)')
     ap.add_argument('--unrar', default='unrar')
     ap.add_argument('--log', default='inbox_sort.jsonl')
     ap.add_argument('--lock', default='/tmp/inbox_sort.lock')
