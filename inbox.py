@@ -16,6 +16,7 @@ Nutzt TVDb/Jellyfin-Helfer aus enricher.py (muss im selben Ordner liegen). Nur P
 import argparse
 import fcntl
 import json
+import os
 import re
 import shutil
 import sys
@@ -237,22 +238,19 @@ def process_movie(video: Path, ctx: dict, stats: dict):
     """Film aus dem Eingang einsortieren. Unsicheres bleibt liegen."""
     movies_root, tmdb = ctx.get('movies_root'), ctx.get('tmdb')
     if not movies_root:
-        print(f'[?] Kein SxxExx erkannt (Film oder unklar, bleibt liegen): {video.name}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'Kein SxxExx erkannt (Film oder unklar, bleibt liegen): {video.name}')
         return
     # Ordner mit mehreren Videos (CD1/CD2, Sammlung) nicht anfassen
     siblings = [v for v in video.parent.iterdir()
                 if v.is_file() and v.suffix.lower() in E.VIDEO_EXTS and v.stat().st_size >= MIN_VIDEO_BYTES]
     if len(siblings) > 1 and video.parent != ctx['inbox']:
-        print(f'[?] Mehrere Videos im Ordner (Film-Sammlung oder Teile?) — bleibt liegen: {video.name}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'Mehrere Videos im Ordner (Film-Sammlung oder Teile?) — bleibt liegen: {video.name}')
         return
     title, year = E.parse_folder_title(video.stem)
     if not year and video.parent != ctx['inbox']:
         title, year = E.parse_folder_title(video.parent.name)
     if not title:
-        print(f'[?] Kein Filmtitel erkennbar — bleibt liegen: {video.name}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'Kein Filmtitel erkennbar — bleibt liegen: {video.name}')
         return
     key = (E._norm_name(title), year)
     if key not in ctx['movie_cache']:
@@ -262,8 +260,7 @@ def process_movie(video: Path, ctx: dict, stats: dict):
             ctx['movie_cache'][key] = (None, f'TMDb-Fehler: {e}')
     movie, why = ctx['movie_cache'][key]
     if not movie:
-        print(f'[?] Film "{title}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'Film "{title}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
         return
 
     name = sanitize(f"{movie.get('title') or title} ({str(movie.get('release_date', ''))[:4]})")
@@ -314,6 +311,41 @@ def jellyfin_notify_movie(url: str, key: str, container_path: str) -> bool:
         return False
 
 
+def unklar(stats: dict, video: Path, msg: str):
+    """Datei bleibt liegen: melden, zählen und für die Liste `_Unklar.txt` im Eingang merken."""
+    print(f'[?] {msg}')
+    stats['unklar'] += 1
+    stats.setdefault('_liste', []).append((video, msg))
+
+
+UNCLEAR_FILE = '_Unklar.txt'
+
+
+def write_unclear_report(inbox: Path, items, now: str = None):
+    """Schreibt Eingang/_Unklar.txt (in Alltagssprache) bzw. entfernt sie, wenn nichts mehr unklar ist."""
+    path = inbox / UNCLEAR_FILE
+    if not items:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return None
+    lines = [f'Stand: {now or time.strftime("%Y-%m-%d %H:%M")}',
+             'Diese Dateien konnte die Eingangs-Automatik nicht sicher zuordnen. Sie liegen noch im Eingang und',
+             'wurden nicht verändert. Meist hilft es, den Ordner/die Datei im Namen um den Titel (und bei Filmen',
+             'das Jahr) zu ergänzen, z. B. "Titel (Jahr)".', '']
+    for video, msg in items:
+        try:
+            name = str(Path(video).relative_to(inbox))
+        except ValueError:
+            name = str(video)
+        lines.append(f'- {name}\n    {msg}')
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    os.replace(tmp, path)
+    return path
+
+
 # ── Kern ──────────────────────────────────────────────────────────────────────
 
 def process_video(video: Path, ctx: dict, stats: dict):
@@ -327,8 +359,7 @@ def process_video(video: Path, ctx: dict, stats: dict):
         p2 = parse_episode(video.parent.name)
         show_guess = p2[0] if p2 else ''
     if not show_guess:
-        print(f'[?] Serienname nicht erkennbar: {video}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'Serienname nicht erkennbar: {video}')
         return
 
     series_root: Path = ctx['series_root']
@@ -350,8 +381,7 @@ def process_video(video: Path, ctx: dict, stats: dict):
         if series:
             show_guess = alt
     if not series:
-        print(f'[?] "{show_guess}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
-        stats['unklar'] += 1
+        unklar(stats, video, f'"{show_guess}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
         return
 
     de_name, _ = E._series_de(series)
@@ -366,8 +396,7 @@ def process_video(video: Path, ctx: dict, stats: dict):
     if target_show is None:
         target_show = series_root / show_name
         if target_show.exists():   # gleichnamiger Ordner gehört zu einer anderen Serie
-            print(f'[?] Ordner "{show_name}" existiert mit anderer TVDb-ID — bleibt liegen: {video.name}')
-            stats['unklar'] += 1
+            unklar(stats, video, f'Ordner "{show_name}" existiert mit anderer TVDb-ID — bleibt liegen: {video.name}')
             return
 
     # Folgentitel/-text auf Deutsch
@@ -580,7 +609,14 @@ def main():
             jp = str(d).replace(src, dst, 1)
             ok = jellyfin_notify_movie(a.jellyfin_url, a.jellyfin_key, jp)
             print(f'Jellyfin informiert ({jp}): {"ok" if ok else "FEHLGESCHLAGEN"}')
-    print('\nErgebnis:', ', '.join(f'{k}={v}' for k, v in stats.items()))
+    if a.apply:
+        try:
+            rep = write_unclear_report(inbox, stats.get('_liste', []))
+            if rep:
+                print(f'Unklares: Liste in {rep}')
+        except OSError as e:
+            print(f'Unklar-Liste nicht geschrieben: {e}')
+    print('\nErgebnis:', ', '.join(f'{k}={v}' for k, v in stats.items() if not k.startswith('_')))
 
 
 if __name__ == '__main__':

@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-10-26] — #53 inbox.py: Liste `_Unklar.txt`
+
+### Added
+- Dateien, die die Eingangs-Automatik nicht sicher zuordnen kann (kein Titel/Jahr, Serie nicht eindeutig, mehrere Videos im Ordner, andere TVDb-ID), bleiben wie bisher unverändert liegen und stehen jetzt mit Grund in `Eingang/_Unklar.txt` (in Alltagssprache; wird bei jedem `--apply`-Lauf neu geschrieben und entfernt, sobald nichts mehr unklar ist). Es werden bewusst keine Dateien verschoben. 69 Tests.
+
 ## [2026-10-26] — #53 inbox.py: Auflösung hinter SxxExx stört die Erkennung nicht mehr
 
 ### Added (Trailer)

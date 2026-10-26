@@ -57,6 +57,24 @@ class GroupPrefix(unittest.TestCase):
         self.assertEqual(inbox.strip_group_prefix('The Big Bang Theory'), '')
 
 
+class UnclearReport(unittest.TestCase):
+    def test_report_written_and_removed(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            inb = Path(t)
+            stats = {'unklar': 0}
+            inbox.unklar(stats, inb / 'Film' / 'x.mkv', 'Kein Filmtitel erkennbar')
+            self.assertEqual(stats['unklar'], 1)
+            f = inbox.write_unclear_report(inb, stats['_liste'], now='2026-10-26 20:00')
+            txt = f.read_text(encoding='utf-8')
+            self.assertIn('- Film/x.mkv', txt)
+            self.assertIn('Kein Filmtitel erkennbar', txt)
+            self.assertFalse((inb / '_Unklar.tmp').exists())
+            self.assertIsNone(inbox.write_unclear_report(inb, []))     # nichts mehr unklar -> Datei weg
+            self.assertFalse(f.exists())
+            self.assertIsNone(inbox.write_unclear_report(inb, []))     # und ohne Fehler, wenn es sie nicht gibt
+
+
 class Trailer(unittest.TestCase):
     PLUGIN = 'plugin://plugin.video.youtube/play/?video_id='
 
