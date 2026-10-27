@@ -57,6 +57,92 @@ class GroupPrefix(unittest.TestCase):
         self.assertEqual(inbox.strip_group_prefix('The Big Bang Theory'), '')
 
 
+class FolderNameFallback(unittest.TestCase):
+    """Datei 'itn-tbbt.s05e01.1080p.mkv' im Ordner 'The.Big.Bang.Theory.S05E01...' (Big Bang Staffel 5)."""
+
+    class FakeTvdb:
+        def search_series(self, q):
+            if ' ' not in q:     # TVDb findet 'doctorwho' / 'tbbt' nicht, nur den Namen mit Leerzeichen
+                return []
+            return [{'name': 'The Big Bang Theory', 'tvdb_id': '80379', 'year': '2007'},
+                    {'name': 'Doctor Who', 'tvdb_id': '76107', 'year': '1963'},
+                    {'name': 'Doctor Who (2005)', 'tvdb_id': '78804', 'year': '2005'}]
+
+        def episode_info(self, *a):
+            return {}
+
+    def _run(self, folder, fname):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            ib = Path(t)
+            d = ib / folder
+            d.mkdir()
+            (ib / 'Serien').mkdir()
+            v = d / fname
+            v.write_bytes(b'x')
+            ctx = {'series_root': ib / 'Serien', 'tvdb': self.FakeTvdb(), 'cache': {}, 'apply': False,
+                   'release_dirs': set(), 'min_age': 0}
+            stats = {'unklar': 0, 'geplant': 0, 'vorhanden': 0}
+            inbox.process_video(v, ctx, stats)
+            return stats
+
+    def test_folder_name_resolves(self):
+        s = self._run('The.Big.Bang.Theory.S05E01.Der.Schlampen.Reflex.German.DL.1080p.BluRay.x264-iNTENTiON',
+                      'itn-tbbt.s05e01.1080p.mkv')
+        self.assertEqual((s['geplant'], s['unklar']), (1, 0))
+
+    def test_doctor_who_group_prefix_and_year(self):
+        # 'tv4a-doctorwho.2005.s02e01': 'doctorwho' ohne Leerzeichen -> kein Treffer, Ordner 'Doctor.Who.2005.S02E01' mit Jahr -> eindeutig
+        s = self._run('Doctor.Who.2005.S02E01.Die.neue.Erde.German.DL.720p.BluRay.x264-TV4A',
+                      'tv4a-doctorwho.2005.s02e01-720p.real.mkv')
+        self.assertEqual((s['geplant'], s['unklar']), (1, 0))
+
+    def test_folder_numbering_beats_wrong_file_numbering(self):
+        # Christmas-Special: Ordner S02E00, die Gruppe hat die Datei 's02e01' genannt
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            s = self._run('Doctor.Who.2005.S02E00.Die.Weihnachtsinvasion.German.DL.720p.BluRay.x264-TV4A',
+                          'tv4a-doctorwho.2005.s02e01-720p.mkv')
+        self.assertEqual((s['geplant'], s['unklar']), (1, 0))
+        self.assertIn('S02E00', buf.getvalue().split('->')[-1])
+        self.assertNotIn('S02E01', buf.getvalue().split('->')[-1])
+
+    def test_folder_with_several_videos_not_trusted(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            ib = Path(t)
+            d = ib / 'The.Big.Bang.Theory.S05E02.Titel.German.1080p-X'
+            d.mkdir()
+            (ib / 'Serien').mkdir()
+            (d / 'itn-tbbt.s05e01.1080p.mkv').write_bytes(b'x')
+            (d / 'itn-tbbt.s05e03.1080p.mkv').write_bytes(b'x')   # Sammelordner: Ordnername zählt nicht
+            ctx = {'series_root': ib / 'Serien', 'tvdb': self.FakeTvdb(), 'cache': {}, 'apply': False,
+                   'release_dirs': set(), 'min_age': 0}
+            stats = {'unklar': 0, 'geplant': 0, 'vorhanden': 0}
+            inbox.process_video(d / 'itn-tbbt.s05e01.1080p.mkv', ctx, stats)
+            self.assertEqual((stats['geplant'], stats['unklar']), (0, 1))
+
+
+class EpisodeInfoMatch(unittest.TestCase):
+    def _tvdb(self, eps):
+        t = E.TVDb.__new__(E.TVDb)
+        t._get = lambda path, **kw: {'data': {'episodes': eps}}
+        return t
+
+    def test_episode_zero_does_not_return_first_episode(self):
+        # TVDb liefert bei episodeNumber=0 die ganze Staffel -> S02E00 darf nicht den Titel von S02E01 bekommen
+        eps = [{'id': 1, 'name': 'Die neue Erde', 'number': 1, 'seasonNumber': 2, 'overview': 'x'}]
+        self.assertEqual(self._tvdb(eps).episode_info(78804, 2, 0), {})
+
+    def test_normal_episode(self):
+        eps = [{'id': 1, 'name': 'Die neue Erde', 'number': 1, 'seasonNumber': 2, 'overview': 'x'}]
+        self.assertEqual(self._tvdb(eps).episode_info(78804, 2, 1)['title'], 'Die neue Erde')
+
+    def test_without_number_fields_old_behaviour(self):
+        self.assertEqual(self._tvdb([{'id': 1, 'name': 'A', 'overview': ''}]).episode_info(1, 1, 1)['title'], 'A')
+
+
 class UnclearReport(unittest.TestCase):
     def test_report_written_and_removed(self):
         import tempfile

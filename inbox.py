@@ -348,6 +348,15 @@ def write_unclear_report(inbox: Path, items, now: str = None):
 
 # ── Kern ──────────────────────────────────────────────────────────────────────
 
+def _only_video_in(d: Path) -> bool:
+    """Genau ein Video (ohne Sample) liegt direkt in diesem Ordner."""
+    try:
+        vids = [f for f in d.iterdir() if f.is_file() and f.suffix.lower() in E.VIDEO_EXTS and 'sample' not in f.name.lower()]
+    except OSError:
+        return False
+    return len(vids) == 1
+
+
 def process_video(video: Path, ctx: dict, stats: dict):
     stem = video.stem
     parsed = parse_episode(stem) or parse_episode(video.parent.name)
@@ -355,6 +364,12 @@ def process_video(video: Path, ctx: dict, stats: dict):
         process_movie(video, ctx, stats)
         return
     show_guess, season, eps, token = parsed
+    pf = parse_episode(video.parent.name)
+    if pf and pf[3] != token and _only_video_in(video.parent):
+        # Release-Ordner und Datei nennen verschiedene Folgen ('...S02E00.Weihnachtsinvasion' enthält 'tv4a-…s02e01.mkv'):
+        # die Zählung im Ordnernamen stimmt, die Gruppe hat die Datei falsch benannt
+        print(f'  Hinweis: Ordner sagt {pf[3]}, Datei sagt {token} — gilt {pf[3]}: {video.name}')
+        season, eps, token = pf[1], pf[2], pf[3]
     if not show_guess:   # z. B. Dateiname nur 'S01E01.mkv' -> Ordnername probieren
         p2 = parse_episode(video.parent.name)
         show_guess = p2[0] if p2 else ''
@@ -369,7 +384,7 @@ def process_video(video: Path, ctx: dict, stats: dict):
     year = year_hint(stem) or year_hint(video.parent.name)
 
     def lookup(guess):
-        k = (E._norm_name(guess), year)
+        k = (guess.strip().lower(), year)   # nicht normalisiert: 'doctorwho' findet bei TVDb nichts, 'Doctor Who' schon
         if k not in ctx['cache']:
             ctx['cache'][k] = pick_series(tvdb, guess, year) if tvdb else (None, 'kein TVDb-Zugang')
         return ctx['cache'][k]
@@ -380,6 +395,12 @@ def process_video(video: Path, ctx: dict, stats: dict):
         series, why2 = lookup(alt)
         if series:
             show_guess = alt
+    if not series:    # 'itn-tbbt.s05e01.mkv' in Ordner 'The.Big.Bang.Theory.S05E01...': Ordnername als zweite Quelle,
+        p3 = parse_episode(video.parent.name)    # aber nur wenn er dieselbe Folge meint
+        if p3 and p3[0] and p3[1:3] == (season, eps) and E._norm_name(p3[0]) != E._norm_name(show_guess):
+            series, why3 = lookup(p3[0])
+            if series:
+                show_guess = p3[0]
     if not series:
         unklar(stats, video, f'"{show_guess}" nicht sicher zuzuordnen ({why}) — bleibt liegen: {video.name}')
         return

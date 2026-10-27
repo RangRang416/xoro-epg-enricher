@@ -415,7 +415,14 @@ class TVDb:
             eps = data.get('data', {}).get('episodes', [])
             if not eps:
                 return {}
-            ep = eps[0]
+            # Bei Folge 0 ignoriert TVDb den Filter und liefert die erste Folge der Staffel -> nur die passende nehmen
+            match = [e for e in eps if e.get('number') == episode and e.get('seasonNumber') == season]
+            if match:
+                ep = match[0]
+            elif any('number' in e for e in eps):
+                return {}
+            else:
+                ep = eps[0]
             result = {'title': ep.get('name', '') or '', 'overview': ep.get('overview', '') or ''}
             if 'deu' in (ep.get('overviewTranslations') or []):
                 try:

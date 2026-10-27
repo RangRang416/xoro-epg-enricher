@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-10-27] — #53 inbox.py: Abgekürzte Dateinamen, falsch nummerierte Dateien, Folge 0 (Echttests Big Bang S05, Doctor Who)
+
+### Fixed
+- Dateien mit abgekürztem Namen (`itn-tbbt.s05e01.mkv`, `tv4a-doctorwho.2005.s02e01.mkv`) im Release-Ordner (`The.Big.Bang.Theory.S05E01…`, `Doctor.Who.2005.S02E01…`) blieben liegen: Der Ordnername wird jetzt als zweite Quelle für den Seriennamen genutzt.
+- Der Zwischenspeicher der Serien-Suche setzte `doctorwho` und `Doctor Who` gleich; das Nicht-Treffer-Ergebnis des ersten blockierte den zweiten. Schlüssel jetzt der unveränderte Name.
+- Nennen Ordner und Datei verschiedene Folgen (Ordner `S02E00` enthält `…s02e01.mkv`) und liegt genau ein Video (ohne Sample) im Ordner, gilt die Nummer im Ordnernamen.
+- `episode_info`: TVDb ignoriert bei `episodeNumber=0` den Filter und liefert die erste Folge der Staffel; es wird nur noch eine Folge mit passender Staffel/Nummer genommen (sonst kein Titel statt falschem Titel).
+- Tests: 76 grün (neu: FolderNameFallback, EpisodeInfoMatch). Auf der NAS eingespielt 27.10. (Sicherung `*.bak-20261027`), Probelauf gegen echten Eingang: 14 Doctor-Who-Folgen zugeordnet, 0 unklar.
+
 ## [2026-10-26] — #53 inbox.py: Liste `_Unklar.txt`
 
 ### Added
