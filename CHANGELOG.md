@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-10-31] — #29 Bestand mit tMM: Fargo umgestellt, Starter `scripts/bestand_apply.sh`
+
+- Fargo (Bestand `Season 05`, 10 Folgen) mit tMM umgestellt, Jellyfin zeigt deutsche Titel; alter Ordner in `_Reste/Bestand-2026-10-31/Fargo` (+ UNDO.sh). Die 41 Folgen im Buffalo-Archiv sind ein eigener Serieneintrag und unberührt.
+- Neu `scripts/bestand_apply.sh "<Ordner>"`: holt den Jellyfin-Schlüssel selbst und ruft `bestand_tmm.py apply` auf (schmaler Befehl für die Freigabe im Auto-Mode). Breaking Bad: Plan frisch erzeugt (62 Dateien), Anwenden wartet auf Freigabe.
+
 ## [2026-10-31] — #53 inbox.py: Jahr aus dem Paketordner (Doctor Who, EXCiTED-Folgen ohne Jahr)
 
 ### Fixed
