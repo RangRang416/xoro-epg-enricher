@@ -97,6 +97,22 @@ class FolderNameFallback(unittest.TestCase):
                       'tv4a-doctorwho.2005.s02e01-720p.real.mkv')
         self.assertEqual((s['geplant'], s['unklar']), (1, 0))
 
+    def test_year_from_package_folder(self):
+        # EXCiTED-Pack: Folge ohne Jahr, nur der Paketordner darüber nennt 2005
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            ib = Path(t)
+            d = ib / 'Doctor Who 2005 S01 - S13 Complete German DL 720p BluRay x264-MIX' / 'Doctor.Who.S11E01.German.DL.720p.BluRay.x264-EXCiTED'
+            d.mkdir(parents=True)
+            (ib / 'Serien').mkdir()
+            v = d / 'doctor.who.s11e01.german.dl.720p.bluray.x264-excited.mkv'
+            v.write_bytes(b'x')
+            ctx = {'inbox': ib, 'series_root': ib / 'Serien', 'tvdb': self.FakeTvdb(), 'cache': {}, 'apply': False,
+                   'release_dirs': set(), 'min_age': 0}
+            stats = {'unklar': 0, 'geplant': 0, 'vorhanden': 0}
+            inbox.process_video(v, ctx, stats)
+            self.assertEqual((stats['geplant'], stats['unklar']), (1, 0))
+
     def test_folder_numbering_beats_wrong_file_numbering(self):
         # Christmas-Special: Ordner S02E00, die Gruppe hat die Datei 's02e01' genannt
         import io, contextlib
@@ -284,6 +300,15 @@ class PickSeries(unittest.TestCase):
         r = [{'name': 'Electric Dreams (2017)', 'year': '2017', 'tvdb_id': '329083',
               'translations': {'deu': "Philip K. Dick's Electric Dreams"}}]
         self.assertEqual(inbox.pick_series(self.FakeTvdb(r), 'Philip K Dicks Electric Dreams')[0]['tvdb_id'], '329083')
+
+    def test_year_hint_path_package_folder(self):
+        ib = Path('/in')
+        v = ib / 'Doctor Who 2005 S01 - S13 Complete German DL 720p-MIX' / 'Doctor.Who.S11E01.German-EXCiTED' / 'doctor.who.s11e01.mkv'
+        self.assertEqual(inbox.year_hint_path(v, ib), 2005)
+        v2 = ib / 'Tulsa.King.S01.German.1080p-X' / 'Tulsa.King.S01E01' / 'tulsa.king.s01e01.mkv'
+        self.assertIsNone(inbox.year_hint_path(v2, ib))
+        v3 = ib / 'Pack 2005 S01-S03' / 'Doctor.Who.2009.S01E01' / 'x.mkv'
+        self.assertEqual(inbox.year_hint_path(v3, ib), 2009)   # näher an der Datei gewinnt
 
     def test_year_hint_and_regex_edges(self):
         self.assertEqual(inbox.year_hint('Doctor.Who.2005.S01E01.German'), 2005)

@@ -78,6 +78,27 @@ def year_hint(name: str):
     return int(y.group(1)) if y else None
 
 
+_SEASON_MARK_RE = re.compile(r'(?<![A-Za-z0-9])[Ss]\d{1,2}(?!\d)')
+
+
+def year_hint_path(video: Path, inbox: Path):
+    """Jahr aus Dateiname, Ordner der Datei oder einem Paketordner darüber (bis zum Eingang).
+
+    'Doctor Who 2005 S01 - S13 Complete/Doctor.Who.S11E01.../x.mkv': die Folgen tragen kein Jahr,
+    der Paketordner schon. Bei Paketordnern gilt nur, was VOR der ersten Staffelangabe steht."""
+    y = year_hint(video.stem) or year_hint(video.parent.name)
+    if y:
+        return y
+    for d in video.parents:
+        if d == inbox or inbox not in d.parents:
+            break
+        m = _SEASON_MARK_RE.search(d.name)
+        found = re.search(r'(?<!\d)((?:19|20)\d{2})(?!\d)', d.name[:m.start()] if m else d.name)
+        if found:
+            return int(found.group(1))
+    return None
+
+
 def _names_of(r: dict):
     names = [r.get('name'), (r.get('translations') or {}).get('deu')] + list(r.get('aliases') or [])
     return [n for n in names if isinstance(n, str) and n]
@@ -381,7 +402,7 @@ def process_video(video: Path, ctx: dict, stats: dict):
     tvdb = ctx['tvdb']
 
     # Serie bestimmen (eindeutig oder gar nicht), dann Zielordner mit ID-Prüfung
-    year = year_hint(stem) or year_hint(video.parent.name)
+    year = year_hint_path(video, ctx.get('inbox') or video.parent)
 
     def lookup(guess):
         k = (guess.strip().lower(), year)   # nicht normalisiert: 'doctorwho' findet bei TVDb nichts, 'Doctor Who' schon
