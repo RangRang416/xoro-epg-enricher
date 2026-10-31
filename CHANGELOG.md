@@ -5,7 +5,8 @@
 ### Fixed
 - Folgen wie `Doctor.Who.S11E01…-EXCiTED` tragen kein Jahr; das Jahr steht nur im Paketordner darüber (`Doctor Who 2005 S01 - S13 Complete…`). Ohne Jahr blieb „Doctor Who" mehrdeutig (1963/2005/…), 5 Staffeln (1, 3, 4, 10, Rest von 11) wurden nicht einsortiert. Neu `year_hint_path`: Datei → Ordner der Datei → Paketordner bis zum Eingang (dort zählt nur, was vor der ersten Staffelangabe steht).
 - Tests: 78 grün (neu: Paketordner-Jahr). NAS eingespielt 31.10. (Sicherung `inbox.py.bak-20261031`); Probelauf: 65 Folgen geplant (S01 13, S03 14, S04 14, S10 14, S11 10, S13 2), 5 unklar.
-- Offen: GDR-Specials `S04S01…S04S05` (kein SxxExx-Muster) werden als Film gesucht und bleiben liegen.
+- Jellyfin-Refresh der Eingangsautomatik (`jellyfin_refresh_series`, genutzt auch von `scripts/bestand_tmm.py`): `FullRefresh` + `ReplaceAllMetadata=true` statt `Default`. `Default` füllt nur leere Felder; Jellyfin hatte jede Doctor-Who-Folge „Doctor Who" genannt, die NFO blieb ungelesen (#56). Test an einer Folge, dann echter Lauf 11:00: 170 Folgen in 13 Staffeln, deutsche Titel, kein „Staffel unbekannt". Tests: 79 grün. NAS: Sicherung `inbox.py.bak-20261031b`.
+- Offen: S02E00 (Weihnachtsinvasion) zeigt in Jellyfin den Text von S02E01 (TVDb-Plugin, NFO ohne Text); GDR-Specials `S04S01…S04S05` (kein SxxExx-Muster) werden als Film gesucht und bleiben liegen.
 
 ## [2026-10-27] — #53 inbox.py: Abgekürzte Dateinamen, falsch nummerierte Dateien, Folge 0 (Echttests Big Bang S05, Doctor Who)
 

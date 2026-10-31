@@ -140,6 +140,27 @@ class FolderNameFallback(unittest.TestCase):
             self.assertEqual((stats['geplant'], stats['unklar']), (0, 1))
 
 
+class JellyfinRefresh(unittest.TestCase):
+    def test_refresh_replaces_metadata_from_nfo(self):
+        calls = []
+
+        def fake_jf(url, key, path, method='GET', body=None):
+            calls.append((method, path))
+            if path.startswith('/Items?Recursive'):
+                return {'Items': [{'Id': 'abc', 'Path': '/s/Doctor Who (2005)'}]}
+            return None
+        orig, inbox._jf = inbox._jf, fake_jf
+        try:
+            self.assertTrue(inbox.jellyfin_refresh_series('u', 'k', '/s/Doctor Who (2005)', 'Doctor Who (2005)', wait=1))
+        finally:
+            inbox._jf = orig
+        refresh = [c for c in calls if '/Refresh' in c[1]]
+        self.assertEqual(len(refresh), 1)
+        self.assertIn('ReplaceAllMetadata=true', refresh[0][1])
+        self.assertIn('MetadataRefreshMode=FullRefresh', refresh[0][1])
+        self.assertIn('ReplaceAllImages=false', refresh[0][1])
+
+
 class EpisodeInfoMatch(unittest.TestCase):
     def _tvdb(self, eps):
         t = E.TVDb.__new__(E.TVDb)

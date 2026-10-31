@@ -200,7 +200,7 @@ def _jf(url, key, path, method='GET', body=None, timeout=20):
 
 
 def jellyfin_refresh_series(url: str, key: str, container_path: str, name: str, wait: int = 120) -> bool:
-    """Meldet Jellyfin den (neuen) Serienordner und liest genau diese Serie komplett ein (kein Voll-Scan).
+    """Meldet Jellyfin den (neuen) Serienordner und liest genau diese Serie komplett ein (kein Voll-Scan); die NFO-Dateien ersetzen dabei vorhandene Werte.
 
     Die Meldung legt bei einer NEUEN Serie nur den Serienordner an, Staffelordner/Folgen fehlen dann noch
     (Test 2026-10-11, Tulsa King) — deshalb danach gezielter Refresh der Serie mit Recursive=true.
@@ -219,8 +219,11 @@ def jellyfin_refresh_series(url: str, key: str, container_path: str, name: str, 
         if not series_id:
             print(f'  Jellyfin kennt "{name}" noch nicht — der nächste Scan holt es nach.')
             return False
-        _jf(url, key, f'/Items/{series_id}/Refresh?Recursive=true&MetadataRefreshMode=Default'
-                      '&ImageRefreshMode=Default&ReplaceAllMetadata=false&ReplaceAllImages=false', 'POST')
+        # FullRefresh + ReplaceAllMetadata: Der Modus 'Default' füllt nur LEERE Felder. Hatte Jellyfin beim ersten
+        # Einlesen schon einen Titel gesetzt (Doctor Who: jede Folge hieß 'Doctor Who'), blieb die NFO ungelesen
+        # (Test 2026-10-31). So gilt die NFO; Bilder werden nur ergänzt, nie ersetzt.
+        _jf(url, key, f'/Items/{series_id}/Refresh?Recursive=true&MetadataRefreshMode=FullRefresh'
+                      '&ImageRefreshMode=Default&ReplaceAllMetadata=true&ReplaceAllImages=false', 'POST')
         return True
     except Exception as e:
         print(f'  Jellyfin-Refresh fehlgeschlagen: {e}')
