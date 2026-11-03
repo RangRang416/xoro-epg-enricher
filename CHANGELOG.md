@@ -4,6 +4,7 @@
 
 - Die fünf Specials `S04S01–05` (Der andere Doktor, Planet der Toten, Der rote Garten, Das Ende der Zeit 1+2) lagen im Eingang, weil TVDb sie in Staffel 0 mit eigener Nummerierung führt (S00E09/13/14/16/17), die Automatik das aus dem Namen aber nicht ableiten kann. Einmal-Skript mit fester, gegen TVDb geprüfter Zuordnung; Probelauf, dann Apply auf der NAS (Move im selben Volume, NFO mit deutschem Titel/Text).
 - Jellyfin (nur Serien-Refresh, kein Scan): 175 Folgen, davon 5 Specials mit deutschen Titeln; keine Folge mit Serienname als Titel.
+- S13E09 (`scripts/doctorwho_s13e09.py`): Die UK-Filmfassung (88 Min., eine Datei) ist jetzt die Folge „Die Macht des Doktors"; Teil 1 und Teil 2 liegen unverändert in `Eingang/_Reste/DoctorWho-S13E09-Teile`. TVDb führt für S13E09 keinen Titel, daher von Hand gesetzt. Gleiche Lücke bei S13E07/E08 (NFO-Titel „Doctor Who (2005)"), noch offen.
 - Zugang: eigener NAS-Schlüssel für den Laptop (`~/.ssh/synology_laptop_ed25519`, Host-Alias `synology`).
 
 ## [2026-10-31] — #29 Bestand mit tMM: Fargo umgestellt, Starter `scripts/bestand_apply.sh`
