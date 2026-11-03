@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] — #56 Doctor-Who-Specials einsortiert (`scripts/doctorwho_specials.py`)
+
+- Die fünf Specials `S04S01–05` (Der andere Doktor, Planet der Toten, Der rote Garten, Das Ende der Zeit 1+2) lagen im Eingang, weil TVDb sie in Staffel 0 mit eigener Nummerierung führt (S00E09/13/14/16/17), die Automatik das aus dem Namen aber nicht ableiten kann. Einmal-Skript mit fester, gegen TVDb geprüfter Zuordnung; Probelauf, dann Apply auf der NAS (Move im selben Volume, NFO mit deutschem Titel/Text).
+- Jellyfin (nur Serien-Refresh, kein Scan): 175 Folgen, davon 5 Specials mit deutschen Titeln; keine Folge mit Serienname als Titel.
+- Zugang: eigener NAS-Schlüssel für den Laptop (`~/.ssh/synology_laptop_ed25519`, Host-Alias `synology`).
+
 ## [2026-10-31] — #29 Bestand mit tMM: Fargo umgestellt, Starter `scripts/bestand_apply.sh`
 
 - Fargo (Bestand `Season 05`, 10 Folgen) mit tMM umgestellt, Jellyfin zeigt deutsche Titel; alter Ordner in `_Reste/Bestand-2026-10-31/Fargo` (+ UNDO.sh). Die 41 Folgen im Buffalo-Archiv sind ein eigener Serieneintrag und unberührt.
