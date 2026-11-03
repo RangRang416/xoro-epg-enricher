@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-03] — #56 Doctor Who: 24 Bestandsfolgen richtig eingeordnet (`scripts/doctorwho_bestand_specials.py`)
+
+- 16 Weihnachts-/Jubiläumsfolgen (`SxxE00`, S07E14–16, S08E13, S09E13, S10E13, S11E11, S12E11, S13E07/08) hatten den Serientitel „Doctor Who (2005)" bzw. (E00) den Text von Folge 1. Sie liegen jetzt in `Season 00` unter ihren TVDb-Nummern mit deutschem Titel. Zuordnung aus den Release-Namen (`inbox_sort.jsonl`), Laufzeiten und TVDb abgeleitet; „Hereingeschneit" ist Last Christmas (S00E142), nicht The Snowmen.
+- Staffel 7 war ab E06 um eine Nummer verrutscht (RSG zählt „Die Schneemänner" als E06): Datei „E06" (59 min) war die Weihnachtsfolge, trug aber den Titel „Die Glocken von Saint John" usw. Schneemänner → S00E66, E07–E14 rücken auf E06–E13 (TVDb-Titel und -Texte stimmen jetzt).
+- Nichts gelöscht: alte NFOs als `.nfo.alt`, Zuordnung alt→neu in `Serien/Doctor Who (2005)/_zuordnung_2026-11-03.txt`.
+- Fehler beim ersten Lauf: Videodateien bekamen den alten Titel im Namen angehängt (8 Stück); von Hand umbenannt, im Skript behoben (`tail()`).
+- **Jellyfin-Refresh der Serie steht aus** (20:36 Uhr, Abendregel) — am 04.11. vormittags nachholen; „Season 00" und die neuen Staffel-7-Titel erscheinen erst danach.
+
 ## [2026-11-03] — #56 Doctor-Who-Specials einsortiert (`scripts/doctorwho_specials.py`)
 
 - Die fünf Specials `S04S01–05` (Der andere Doktor, Planet der Toten, Der rote Garten, Das Ende der Zeit 1+2) lagen im Eingang, weil TVDb sie in Staffel 0 mit eigener Nummerierung führt (S00E09/13/14/16/17), die Automatik das aus dem Namen aber nicht ableiten kann. Einmal-Skript mit fester, gegen TVDb geprüfter Zuordnung; Probelauf, dann Apply auf der NAS (Move im selben Volume, NFO mit deutschem Titel/Text).
