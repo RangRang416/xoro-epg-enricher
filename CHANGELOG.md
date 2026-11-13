@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-13] — #57 B/D/E: `_Reste`-Löschliste, optionale Healthchecks-Meldung, Prüfliste JD-Download
+
+- **B:** `_Reste/_Loeschliste.txt` wird bei jedem Lauf neu geschrieben: Einträge > 30 Tage alt, die NUR aus NFO/Bildern/Textdateien oder Beispielvideos (Sample/Proof) bestehen. `Bestand-*`, `DoctorWho-S13E09*`, Untertitel, Archive, normale Videos und Unbekanntes kommen nie darauf. Die Automatik löscht nichts; Löschen nur von Hand nach Freigabe. Ohne `--apply` nur Anzeige.
+- **D:** `--healthcheck-url` (optional, aus): Unklares → Ping auf `<url>/fail` mit Dateiliste, sonst normaler Ping; Fehler beim Melden stören den Lauf nicht. Wartet auf die Adresse von Bernd.
+- **E:** Prüfliste `F:\JD-Download` (97,7 GB, 40 Archivgruppen) per Sortier-Protokoll + Zieldatei abgeglichen: 29 Gruppen (57,9 GB) nachweislich am Ziel, 11 (39,8 GB) manuell.
+- Avatar 2 wurde vom 15-Uhr-Lauf (A+C) einsortiert.
+
 ## [2026-11-13] — #57 Eingang: `@eaDir` zählt als Müll, Filmtitel-Zweitstufe (`inbox.py`)
 
 - **A:** Ordner, in denen nur noch (auch gefülltes) Synology-`@eaDir` liegt, entfallen beim stündlichen Aufräumen samt `@eaDir`; nur wenn der Ordner > 1 h unverändert ist. Die Suche läuft nie in `@eaDir` hinein (früher wanderten Vorschaubilder nach `_Reste`). Ohne `--apply` zeigt das Aufräumen jetzt als `[Probelauf]`, was es täte.
