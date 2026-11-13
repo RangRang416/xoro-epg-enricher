@@ -409,6 +409,105 @@ def write_unclear_report(inbox: Path, items, now: str = None):
     return path
 
 
+# ── Meldung an Healthchecks (#57 D, optional) ─────────────────────────────────
+
+def ping_healthcheck(url: str, items, timeout: int = 10) -> bool:
+    """Meldet den Lauf an einen Healthchecks-Check (nur mit --healthcheck-url). Unklares -> '/fail' mit der Liste im
+    Text (Healthchecks schickt die Nachricht beim Wechsel auf 'rot', nicht bei jedem Lauf); sonst normaler Ping.
+    Fehler beim Melden dürfen den Lauf nie stören."""
+    try:
+        base = url.rstrip('/')
+        names = [Path(video).name for video, _msg in items or []]
+        body = ''
+        if items:
+            body = f'{len(items)} Datei(en) im Eingang nicht sicher zuzuordnen:\n' + '\n'.join(f'- {n}' for n in names[:30])
+        req = urllib.request.Request(base + ('/fail' if items else ''), data=body.encode('utf-8')[:10000], method='POST')
+        urllib.request.urlopen(req, timeout=timeout).close()
+        return True
+    except Exception as e:
+        print(f'Healthchecks-Meldung fehlgeschlagen: {e}')
+        return False
+
+
+# ── _Reste: Verfallsdatum und Löschliste (#57 B) ──────────────────────────────
+
+RESTE_LIST_FILE = '_Loeschliste.txt'
+RESTE_KEEP_PREFIXES = ('Bestand-', 'DoctorWho-S13E09')   # Rückgängig-Daten (tMM) und offene Entscheidung: nie vorschlagen
+RESTE_MAX_AGE_DAYS = 30
+
+
+def _dir_size(d: Path) -> int:
+    total = 0
+    for x in d.rglob('*'):
+        try:
+            if x.is_file():
+                total += x.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
+def _is_pure_junk_entry(d: Path) -> bool:
+    """True, wenn der Eintrag NUR aus Scene-NFO/Bildern/Textdateien oder Beispielvideos (Sample/Proof) besteht.
+    Untertitel (.sub/.idx), Archive, normale Videos und alles Unbekannte -> False (bleibt, wird nie vorgeschlagen)."""
+    seen = False
+    for x in d.rglob('*'):
+        if '@eaDir' in x.relative_to(d).parts or not x.is_file():
+            continue
+        seen = True
+        ext = x.suffix.lower()
+        rel = [p.lower() for p in x.relative_to(d).parts]
+        if ext in JUNK_EXTS:
+            continue
+        if ext in E.VIDEO_EXTS and any(('sample' in p or 'proof' in p) for p in rel):
+            continue
+        return False
+    return seen
+
+
+def update_reste_list(inbox: Path, apply: bool, now: float = None, max_age_days: int = RESTE_MAX_AGE_DAYS):
+    """Schreibt _Reste/_Loeschliste.txt: Reste, die älter als 30 Tage und reiner Müll sind. LÖSCHT NIE selbst —
+    gelöscht wird nur von Hand nach ausdrücklicher Freigabe. Ohne --apply nur Anzeige."""
+    reste = inbox / '_Reste'
+    if not reste.is_dir():
+        return None
+    now = now or time.time()
+    items, young, other = [], 0, 0
+    for d in sorted(reste.iterdir()):
+        try:
+            if not d.is_dir() or d.name.startswith('_') or d.name == '@eaDir' or d.name.startswith(RESTE_KEEP_PREFIXES):
+                continue
+            if now - d.stat().st_mtime < max_age_days * 86400:
+                young += 1
+            elif _is_pure_junk_entry(d):
+                items.append((d.name, _dir_size(d)))
+            else:
+                other += 1
+        except OSError:
+            continue
+    path = reste / RESTE_LIST_FILE
+    total_mb = sum(sz for _, sz in items) / 1048576
+    if not apply:
+        print(f'[Probelauf] _Reste: {len(items)} Einträge ({total_mb:.0f} MB) kämen auf die Löschliste, '
+              f'{young} noch zu jung, {other} mit anderem Inhalt (bleiben).')
+        return None
+    if not items:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return None
+    lines = [f'Stand: {time.strftime("%Y-%m-%d %H:%M", time.localtime(now))}',
+             f'Vorschlag zum Löschen: reiner Müll (Scene-NFO, Bilder, Beispielvideos), seit mehr als {max_age_days} Tagen in _Reste.',
+             'Die Automatik löscht NICHTS selbst. Gelöscht wird erst nach ausdrücklicher Freigabe.',
+             f'Gesamt: {len(items)} Einträge, {total_mb:.0f} MB', '']
+    lines += [f'- {name}  ({sz / 1048576:.1f} MB)' for name, sz in items]
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    os.replace(tmp, path)
+    return path
+
+
 # ── Kern ──────────────────────────────────────────────────────────────────────
 
 def _only_video_in(d: Path) -> bool:
@@ -659,6 +758,7 @@ def main():
                     help='Sekunden, die ein Paket unverändert liegen muss, bevor --unpack es anfasst (JDownloader Vortritt)')
     ap.add_argument('--max-unpack', type=int, default=1, help='Höchstzahl Pakete pro Lauf (NAS schonen)')
     ap.add_argument('--unrar', default='unrar')
+    ap.add_argument('--healthcheck-url', help='Optional: Healthchecks-Adresse; Unklares meldet \'/fail\' (nur mit --apply)')
     ap.add_argument('--log', default='inbox_sort.jsonl')
     ap.add_argument('--lock', default='/tmp/inbox_sort.lock')
     a = ap.parse_args()
@@ -698,6 +798,10 @@ def main():
             stats['fehler'] += 1
 
     cleanup_release_dirs(ctx, inbox)   # ohne --apply nur Anzeige
+    try:
+        update_reste_list(inbox, a.apply)
+    except OSError as e:
+        print(f'_Reste-Löschliste nicht geschrieben: {e}')
     if a.apply:
         if a.jellyfin_url and a.jellyfin_key and a.jellyfin_path_map and ctx['touched']:
             src, dst = a.jellyfin_path_map.split('=', 1)
@@ -718,6 +822,8 @@ def main():
                 print(f'Unklares: Liste in {rep}')
         except OSError as e:
             print(f'Unklar-Liste nicht geschrieben: {e}')
+        if a.healthcheck_url:
+            ping_healthcheck(a.healthcheck_url, stats.get('_liste', []))
     print('\nErgebnis:', ', '.join(f'{k}={v}' for k, v in stats.items() if not k.startswith('_')))
 
 
