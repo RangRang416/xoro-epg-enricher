@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] — #57 Eingang: `@eaDir` zählt als Müll, Filmtitel-Zweitstufe (`inbox.py`)
+
+- **A:** Ordner, in denen nur noch (auch gefülltes) Synology-`@eaDir` liegt, entfallen beim stündlichen Aufräumen samt `@eaDir`; nur wenn der Ordner > 1 h unverändert ist. Die Suche läuft nie in `@eaDir` hinein (früher wanderten Vorschaubilder nach `_Reste`). Ohne `--apply` zeigt das Aufräumen jetzt als `[Probelauf]`, was es täte.
+- **C:** `pick_movie` hat eine strenge zweite Stufe (z. B. „Avatar 2 The Way Of Water" = „Avatar: The Way of Water"): Jahr stimmt, genau ein TMDb-Treffer in dem Jahr, alle Titelwörter im Dateinamen, überzählig nur Ziffern/Füllwörter, Titel nicht nur aus Füllwörtern. Sonst bleibt der Film liegen.
+- Test (Tester-Subagent + Probelauf auf Kopie des Eingangs): 1 Fehler gefunden und behoben (frischer Ordner nur mit `@eaDir`). Freigabe Bernd 13.11.
+
 ## [2026-11-03] — #56 Doctor Who: 24 Bestandsfolgen richtig eingeordnet (`scripts/doctorwho_bestand_specials.py`)
 
 - 16 Weihnachts-/Jubiläumsfolgen (`SxxE00`, S07E14–16, S08E13, S09E13, S10E13, S11E11, S12E11, S13E07/08) hatten den Serientitel „Doctor Who (2005)" bzw. (E00) den Text von Folge 1. Sie liegen jetzt in `Season 00` unter ihren TVDb-Nummern mit deutschem Titel. Zuordnung aus den Release-Namen (`inbox_sort.jsonl`), Laufzeiten und TVDb abgeleitet; „Hereingeschneit" ist Last Christmas (S00E142), nicht The Snowmen.

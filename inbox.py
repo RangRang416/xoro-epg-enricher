@@ -238,6 +238,41 @@ def _fold(s: str) -> str:
     return E._norm_name(''.join(c for c in s if not unicodedata.combining(c)))
 
 
+_FILLER_WORDS = {'the', 'der', 'die', 'das', 'ein', 'eine', 'a', 'an', 'und', 'and', 'of', 'von'}
+
+
+def _words(s: str) -> list:
+    """Wörter eines Titels: ohne Akzente/Satzzeichen, klein."""
+    s = unicodedata.normalize('NFKD', s or '')
+    s = ''.join(c for c in s if not unicodedata.combining(c)).lower()
+    s = s.replace('ß', 'ss')
+    return re.findall(r'[0-9a-z]+', s)
+
+
+def _pick_movie_second_stage(results: list, title: str, year: str):
+    """Zweite Stufe, nur wenn die erste nichts fand. Nimmt einen TMDb-Treffer nur, wenn
+    (1) sein Erscheinungsjahr stimmt, (2) es in den Treffern genau EINEN Film dieses Jahres gibt und
+    (3) alle Wörter seines Titels (deutsch oder Original) im Dateinamen vorkommen und überzählig nur
+    Ziffern oder Füllwörter sind. Sonst: unsicher, Film bleibt liegen. Kein Rückfall ohne Jahr."""
+    in_year = [r for r in results if str(r.get('release_date', ''))[:4] == str(year)]
+    if len(in_year) != 1:
+        return None, f'Zweitstufe: {len(in_year)} Treffer im Jahr {year}, nicht genau einer'
+    cand = in_year[0]
+    for name in (cand.get('title'), cand.get('original_title')):
+        wanted, rest = _words(name), _words(title)
+        if not wanted or all(w in _FILLER_WORDS for w in wanted):   # Titel nur aus Füllwörtern: zu unscharf
+            continue
+        for w in wanted:
+            if w in rest:
+                rest.remove(w)
+            else:
+                break
+        else:
+            if all(w.isdigit() or w in _FILLER_WORDS for w in rest):
+                return cand, ''
+    return None, 'Zweitstufe: Titel passt nicht sicher zum einzigen Treffer'
+
+
 def pick_movie(tmdb, title: str, year: str):
     """TMDb-Film nur wählen, wenn eindeutig. Gibt (Film, Grund) zurück; Film=None bei Unsicherheit.
 
@@ -252,7 +287,11 @@ def pick_movie(tmdb, title: str, year: str):
              if str(r.get('release_date', ''))[:4] == str(year)
              and g in {_fold(r.get('title')), _fold(r.get('original_title'))}]
     if not exact:
-        return None, f'kein Treffer mit gleichem Titel und Jahr {year}'
+        # Zweite, ebenfalls strenge Stufe (#57 C): z. B. "Avatar 2 The Way Of Water" = "Avatar: The Way of Water"
+        movie, why = _pick_movie_second_stage(results, title, year)
+        if movie:
+            return movie, ''
+        return None, f'kein Treffer mit gleichem Titel und Jahr {year} ({why})'
     if len(exact) > 1:
         return None, 'mehrere Filme mit diesem Titel und Jahr'
     return exact[0], ''
@@ -537,15 +576,20 @@ def _unique(path: Path) -> Path:
 
 
 def _rmdir_if_empty(d: Path) -> bool:
-    """Löscht nur einen WIRKLICH leeren Ordner (ein leeres @eaDir zählt nicht als Inhalt)."""
+    """Löscht nur einen Ordner ohne echten Inhalt. @eaDir (Synology-Vorschaudaten, wird bei Bedarf
+    neu erzeugt) zählt nicht als Inhalt und wird verworfen — auch wenn es gefüllt ist (#57 A)."""
     try:
-        eadir = d / '@eaDir'
-        if eadir.is_dir() and not any(eadir.iterdir()):
-            eadir.rmdir()
+        if _is_empty_but_eadir(d):
+            shutil.rmtree(d / '@eaDir', ignore_errors=True)
         d.rmdir()
         return True
     except OSError:
         return False
+
+
+def _is_empty_but_eadir(d: Path) -> bool:
+    """True, wenn im Ordner nichts liegt außer (evtl. gefülltem) @eaDir."""
+    return d.is_dir() and all(x.name == '@eaDir' for x in d.iterdir())
 
 
 def cleanup_release_dirs(ctx: dict, inbox: Path):
@@ -556,16 +600,29 @@ def cleanup_release_dirs(ctx: dict, inbox: Path):
     # Alte Rest-Ordner früherer Läufe (nur Müll, seit > 1 h unverändert) mit aufräumen
     for d in inbox.rglob('*'):
         try:
-            if (d.is_dir() and d.name != '@eaDir' and '_Reste' not in d.relative_to(inbox).parts
-                    and any(x.name != '@eaDir' for x in d.iterdir()) and _only_junk(d, 3600)):
+            parts = d.relative_to(inbox).parts
+            if not d.is_dir() or '_Reste' in parts or '@eaDir' in parts:   # nie in @eaDir hineinsuchen
+                continue
+            if any(x.name != '@eaDir' for x in d.iterdir()) and _only_junk(d, 3600):
                 candidates.add(d)
+            elif (any(True for _ in d.iterdir()) and _is_empty_but_eadir(d) and _only_junk(d, 3600)
+                    and time.time() - d.stat().st_mtime >= 3600):
+                candidates.add(d)   # nur gefülltes @eaDir übrig, Ordner selbst seit > 1 h unverändert (#57 A)
         except OSError:
             pass
+    apply = ctx['apply']
     for d in sorted(candidates, key=lambda p: len(p.parts), reverse=True):
         try:
             if d == inbox or not d.exists() or not _only_junk(d, ctx['min_age']):
                 continue
             leftovers = [x for x in d.iterdir() if x.name != '@eaDir']
+            if not apply:   # Probelauf: nur anzeigen, nichts anfassen
+                rel = d.relative_to(inbox)
+                if leftovers:
+                    print(f'[Probelauf] Aufräumen: {rel} -> {len(leftovers)} Rest(e) nach _Reste/{d.name}, Ordner entfällt')
+                else:
+                    print(f'[Probelauf] Aufräumen: {rel} -> nur @eaDir übrig, Ordner entfällt')
+                continue
             if leftovers:
                 target = _unique(reste / d.name)
                 target.mkdir(parents=True)
@@ -640,8 +697,8 @@ def main():
             print(f'[Fehler] {video.name}: {e}')
             stats['fehler'] += 1
 
+    cleanup_release_dirs(ctx, inbox)   # ohne --apply nur Anzeige
     if a.apply:
-        cleanup_release_dirs(ctx, inbox)
         if a.jellyfin_url and a.jellyfin_key and a.jellyfin_path_map and ctx['touched']:
             src, dst = a.jellyfin_path_map.split('=', 1)
             for show in sorted(ctx['touched']):
