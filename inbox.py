@@ -343,7 +343,12 @@ def process_movie(video: Path, ctx: dict, stats: dict):
     shutil.move(str(video), str(dest))
     E._touch_now(dest)
     try:
-        (dest_dir / 'movie.nfo').write_text(E.build_movie_nfo(details), encoding='utf-8')
+        trailer = ''
+        try:   # Trailer-Knopf in Jellyfin; fehlt er, ist das kein Grund zum Abbruch
+            trailer = E.tmdb_trailer_tag(tmdb.movie_videos(movie['id']))
+        except Exception as e:
+            print(f'    Trailer nicht ermittelt: {e}')
+        (dest_dir / 'movie.nfo').write_text(E.build_movie_nfo(details, trailer=trailer), encoding='utf-8')
         poster = tmdb.poster_url(details)
         if poster:
             (dest_dir / 'poster.jpg').write_bytes(E.http_get_bytes(poster))

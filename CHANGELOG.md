@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-15] — #58 Trailer-Verweise: neue Filme + Nachtrag-Skript (nur Probelauf, noch nicht auf der NAS)
+
+- `enricher.py`: `tmdb_trailer_tag()` (TMDb-Videos → YouTube-Trailer, Deutsch vor Englisch, offizielle zuerst), `TMDb.movie_videos()`, `build_movie_nfo(..., trailer=)`; `inbox.py` schreibt den `<trailer>` bei neu einsortierten Filmen (Fehler dabei brechen nichts ab).
+- Neu `scripts/trailer_nachtragen.py`: ergänzt in vorhandenen Film-/Serien-NFOs nur die Zeile `<trailer>`; Standard = Probelauf (liest nur). Schutz: Gegenprobe Titel+Jahr gegen TMDb, Sicherung je Datei (Hash-Name + `index.jsonl`, nie überschrieben), `--backup-dir` Pflicht bei `--apply`, `--apply` mit `--sample` gesperrt, Symlinks/`@eaDir` übersprungen, Besitzer/Rechte bleiben, Fehler je Datei stoppen den Lauf nicht.
+- Opus-Review: 4 wichtige Befunde (Sicherungsname-Kollision, Seriennummer als Film-Kennung, fehlender Fehlerfang, `--apply`+`--sample`) behoben und neu getestet.
+- Probelauf Synology-Ordner: 250 Film-NFOs + 34 Serien ohne Trailer; Stichprobe 60 → 44 mit Trailer (~73 %), 0 Kennungskonflikte. Buffalo/E: noch nicht gezählt.
+
 ## [2026-11-13] — #57 B/D/E: `_Reste`-Löschliste, optionale Healthchecks-Meldung, Prüfliste JD-Download
 
 - **B:** `_Reste/_Loeschliste.txt` wird bei jedem Lauf neu geschrieben: Einträge > 30 Tage alt, die NUR aus NFO/Bildern/Textdateien oder Beispielvideos (Sample/Proof) bestehen. `Bestand-*`, `DoctorWho-S13E09*`, Untertitel, Archive, normale Videos und Unbekanntes kommen nie darauf. Die Automatik löscht nichts; Löschen nur von Hand nach Freigabe. Ohne `--apply` nur Anzeige.

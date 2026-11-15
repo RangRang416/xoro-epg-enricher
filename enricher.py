@@ -132,6 +132,10 @@ class TMDb:
             d['overview'] = self._get(f'/movie/{tmdb_id}', language='en').get('overview', '')
         return d
 
+    def movie_videos(self, tmdb_id: int) -> list:
+        """TMDb-Videoliste eines Films (deutsch und englisch, ohne Übersetzungs-Lücken)."""
+        return self._get(f'/movie/{tmdb_id}/videos', include_video_language='de,en').get('results', [])
+
     def tv_details(self, tmdb_id: int) -> dict:
         d = self._get(f'/tv/{tmdb_id}')
         if not d.get('overview'):
@@ -492,7 +496,7 @@ def _series_de(series: dict):
     return name, overview
 
 
-def build_movie_nfo(details: dict, channel: str = '', epg_title: str = '') -> str:
+def build_movie_nfo(details: dict, channel: str = '', epg_title: str = '', trailer: str = '') -> str:
     root = Element('movie')
     tmdb_title = details.get('title') or details.get('name', '')
     _text(root, 'title',         epg_title or tmdb_title)
@@ -505,6 +509,8 @@ def build_movie_nfo(details: dict, channel: str = '', epg_title: str = '') -> st
         _text(root, 'genre', g['name'])
     if channel:
         _text(root, 'studio', channel)
+    if trailer:
+        _text(root, 'trailer', trailer)
     runtime = details.get('runtime') or (details.get('episode_run_time') or [None])[0]
     if runtime:
         _text(root, 'runtime', runtime)
@@ -546,6 +552,21 @@ def youtube_trailer_tag(trailers) -> str:
         m = _YT_ID_RE.search(t.get('url') or '')
         if m:
             return f'plugin://plugin.video.youtube/play/?video_id={m.group(1)}'
+    return ''
+
+
+def tmdb_trailer_tag(videos) -> str:
+    """Aus der TMDb-Videoliste (`movie/<id>/videos`) die Jellyfin-Adresse eines YouTube-Trailers, sonst ''.
+
+    Nur Typ 'Trailer' auf YouTube; Deutsch vor Englisch vor allem anderen, offizielle zuerst.
+    Gleiche Adressform wie bei Serien (siehe youtube_trailer_tag)."""
+    def rank(v):
+        return ({'de': 0, 'en': 1}.get((v.get('iso_639_1') or '').lower(), 2), not v.get('official'))
+    for v in sorted((v for v in (videos or []) if isinstance(v, dict)
+                     and v.get('site') == 'YouTube' and v.get('type') == 'Trailer'), key=rank):
+        key = v.get('key') or ''
+        if re.fullmatch(r'[A-Za-z0-9_-]{11}', key):
+            return f'plugin://plugin.video.youtube/play/?video_id={key}'
     return ''
 
 
