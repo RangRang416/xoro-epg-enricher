@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-18] — NAS: Jellyfin-Neustarts bei Laufwerks-Mount abgestellt (nur NAS-Config, nicht im Repo)
+
+- `mount-cifs.sh`: markiert `/volume1` bei jedem Lauf als shared (`mount --make-rshared`), Neustart-Block (PENDING_FLAG) entfernt; Boot-Health-Check bleibt.
+- `docker-compose.yml`: `buffalo-archiv` und `windows-e` mit `:ro,rslave` → neue CIFS-Mounts erscheinen im Container ohne Neustart (im Container `master:N` geprüft).
+- Sicherungen `*.bak-20261118` in `/volume1/dvb-library`; Nachweis beim nächsten echten Neu-Mount noch offen.
+- Eingang: 25 doppelte Doctor-Who-Fassungen (46 GB) nach Abgleich mit `inbox_sort.jsonl` gelöscht (Bernd Ja).
+
 ## [2026-11-15] — #58 Trailer-Verweise: neue Filme + Nachtrag-Skript (nur Probelauf, noch nicht auf der NAS)
 
 - `enricher.py`: `tmdb_trailer_tag()` (TMDb-Videos → YouTube-Trailer, Deutsch vor Englisch, offizielle zuerst), `TMDb.movie_videos()`, `build_movie_nfo(..., trailer=)`; `inbox.py` schreibt den `<trailer>` bei neu einsortierten Filmen (Fehler dabei brechen nichts ab).
